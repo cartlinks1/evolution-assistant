@@ -142,6 +142,12 @@ npm run ask                    # chat mode; follow-up questions work
 3. Run `npm run ingest`. Its warnings flag anything odd: a document that mentions dealer
    pricing, a PDF that looks scanned, or a file missing from the manifest.
 
+**Approving a claim that isn't in any document yet.** Write it word for word in an
+`approved-statements.md` file in the data folder, and mark that file `approved_for_claims=true`
+in the manifest. The assistant can then quote it with a citation like any other source. It
+stays under the same rules: the exact wording, the numbers checked against the text, and the
+product it applies to named.
+
 ## Dealer questions
 
 Company policy is that **everything dealer-related is handled personally by email**: pricing,
