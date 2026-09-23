@@ -114,6 +114,33 @@ test("claims guard: an uncited claim is removed", () => {
   assert.equal(r.removed.length, 1);
 });
 
+test("claims guard: an uncited lead-in is judged with the cited rest of its sentence", () => {
+  // Real case from the first live run: Claude split one sentence across two segments.
+  const r = guardClaims([
+    { text: "On UV, yes: ", citations: [] },
+    {
+      text: "the Trail Series blocks 99% of UVA and UVB light, per ASTM E903 testing.",
+      citations: [{ citedText: "Blocks 99% of UVA and UVB light, per ASTM E903 testing by Northfield Test Labs", approvedForClaims: true }],
+    },
+  ]);
+  assert.equal(r.removed.length, 0);
+  assert.equal(r.segments.map((s) => s.text).join(""), "On UV, yes: the Trail Series blocks 99% of UVA and UVB light, per ASTM E903 testing.");
+});
+
+test("claims guard: declining to make a claim is not a claim", () => {
+  const r = guardClaims([
+    { text: "For a strength comparison against glass, I don't have an approved figure I can quote.", citations: [] },
+  ]);
+  assert.equal(r.removed.length, 0);
+});
+
+test("claims guard: 'Z26.1' doesn't split a sentence", () => {
+  const r = guardClaims([
+    { text: "It's certified under ANSI/SAE Z26.1-1996.", citations: [{ citedText: "certified AS-4 under ANSI/SAE Z26.1-1996", approvedForClaims: true }] },
+  ]);
+  assert.equal(r.removed.length, 0);
+});
+
 test("claims guard: pricing percentages are not treated as claims", () => {
   const r = guardClaims([{ text: "A 15% restocking fee applies.", citations: [] }]);
   assert.equal(r.removed.length, 0);

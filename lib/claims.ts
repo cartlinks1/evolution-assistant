@@ -44,18 +44,64 @@ function checkSentence(sentence: string, citations: CitedSegment["citations"]): 
   return null;
 }
 
+/** "I don't have an approved figure for that" mentions a claim topic but makes no claim. */
+const DECLINES_TO_CLAIM =
+  /\b(don'?t|do not|can'?t|cannot|couldn'?t|unable to|not able to)\b[^.!?]*\b(have|find|confirm|quote|share|provide|see|verify)\b|\bno approved\b/i;
+
+/** Sentence boundaries: . ! ? followed by whitespace or the end (so "Z26.1" and "3.5" don't split). */
+function sentenceRanges(text: string): [number, number][] {
+  const ranges: [number, number][] = [];
+  let start = 0;
+  for (let i = 0; i < text.length; i++) {
+    if (/[.!?]/.test(text[i]!) && (i + 1 === text.length || /\s/.test(text[i + 1]!))) {
+      let end = i + 1;
+      while (end < text.length && /\s/.test(text[end]!)) end++;
+      ranges.push([start, end]);
+      start = end;
+      i = end - 1;
+    }
+  }
+  if (start < text.length) ranges.push([start, text.length]);
+  return ranges;
+}
+
+/**
+ * Claude's answer arrives as segments that can split a sentence ("On UV, yes: " + "it blocks
+ * 99%…"[cited]). So we judge whole SENTENCES, each carrying the citations of every segment it
+ * overlaps, then cut the rejected sentences back out of the segments.
+ */
 export function guardClaims(segments: CitedSegment[]): GuardResult {
   const removed: GuardResult["removed"] = [];
-  const kept = segments.map((seg) => {
-    // Split the segment into sentences but keep the whitespace between them.
-    const parts = seg.text.split(/(?<=[.!?])(\s+)/);
-    const out = parts.filter((part) => {
-      if (!part.trim()) return true;
-      const reason = checkSentence(part, seg.citations);
-      if (reason) removed.push({ sentence: part.trim(), reason });
-      return !reason;
-    });
-    return { ...seg, text: out.join("") };
+  const full = segments.map((s) => s.text).join("");
+  const spans: { start: number; end: number; seg: CitedSegment }[] = [];
+  let pos = 0;
+  for (const seg of segments) {
+    spans.push({ start: pos, end: pos + seg.text.length, seg });
+    pos += seg.text.length;
+  }
+
+  const cut: [number, number][] = [];
+  for (const [s, e] of sentenceRanges(full)) {
+    const sentence = full.slice(s, e).trim();
+    if (!sentence) continue;
+    if (DECLINES_TO_CLAIM.test(sentence) && !/\d/.test(sentence)) continue;
+    const citations = spans
+      .filter((sp) => sp.start < e && sp.end > s && full.slice(Math.max(sp.start, s), Math.min(sp.end, e)).trim())
+      .flatMap((sp) => sp.seg.citations);
+    const reason = checkSentence(sentence, citations);
+    if (reason) {
+      removed.push({ sentence, reason });
+      cut.push([s, e]);
+    }
+  }
+
+  const kept = spans.map(({ start, seg }) => {
+    let text = "";
+    for (let i = 0; i < seg.text.length; i++) {
+      const at = start + i;
+      if (!cut.some(([s, e]) => at >= s && at < e)) text += seg.text[i];
+    }
+    return { ...seg, text };
   });
   return { segments: kept, removed };
 }

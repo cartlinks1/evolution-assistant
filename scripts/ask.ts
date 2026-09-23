@@ -40,7 +40,7 @@ function print(r: AnswerResult) {
       const tags = [s.audience, s.approvedForClaims ? "approved for claims" : null, s.lastUpdated && `updated ${s.lastUpdated}`]
         .filter(Boolean)
         .join(" · ");
-      console.log(`  [${s.n}] ${s.title}${s.section ? ` › ${s.section}` : ""}  ${dim(`(${s.path} · ${tags})`)}`);
+      console.log(`  [${s.n}] ${s.title}${s.section ? ` › ${s.section}` : ""}  ${dim(`(${[s.path, tags].filter(Boolean).join(" · ")})`)}`);
       for (const q of s.citedText.slice(0, 3)) console.log(dim(`      "${preview(q, 110)}"`));
     }
   }

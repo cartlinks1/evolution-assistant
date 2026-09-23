@@ -30,9 +30,14 @@ async function post<T>(endpoint: string, body: unknown, attempt = 1): Promise<T>
     headers: { Authorization: `Bearer ${config.voyageApiKey()}`, "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  // Retry rate limits and server hiccups with backoff (1s, 2s, 4s).
-  if ((res.status === 429 || res.status >= 500) && attempt <= 3) {
-    await new Promise((r) => setTimeout(r, 1000 * 2 ** (attempt - 1)));
+  // Retry rate limits and server hiccups. Voyage's limits are per MINUTE (and only 3/min on
+  // accounts without a payment method), so back off long enough to actually clear them:
+  // the server's Retry-After if given, else 5s, 10s, 20s, 40s, 60s.
+  if ((res.status === 429 || res.status >= 500) && attempt <= 5) {
+    const retryAfter = Number(res.headers.get("retry-after"));
+    const waitMs = retryAfter > 0 ? retryAfter * 1000 : Math.min(5000 * 2 ** (attempt - 1), 60_000);
+    if (res.status === 429) console.warn(`  … Voyage rate limit — waiting ${Math.round(waitMs / 1000)}s and retrying`);
+    await new Promise((r) => setTimeout(r, waitMs));
     return post(endpoint, body, attempt + 1);
   }
   if (!res.ok) throw new Error(`Voyage ${endpoint} failed (${res.status}): ${await res.text()}`);

@@ -12,7 +12,8 @@ function required(name: string): string {
 export const config = {
   anthropicApiKey: () => required("ANTHROPIC_API_KEY"),
   voyageApiKey: () => required("VOYAGE_API_KEY"),
-  supabaseUrl: () => required("SUPABASE_URL"),
+  // Accept the URL as copied from either dashboard page ("…supabase.co" or "…supabase.co/rest/v1/").
+  supabaseUrl: () => required("SUPABASE_URL").replace(/\/rest\/v1\/?$/, "").replace(/\/+$/, ""),
   supabaseSecretKey: () => required("SUPABASE_SECRET_KEY"),
 
   /** Anthropic's current recommended model. Override with CLAUDE_MODEL (e.g. claude-sonnet-5). */

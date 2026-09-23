@@ -19,6 +19,9 @@ const dir = path.resolve("supabase/migrations");
 try {
   await sql`create table if not exists _migrations (name text primary key, applied_at timestamptz not null default now())`;
   await sql`alter table _migrations enable row level security`;
+  // If 001 was run by pasting it into the Supabase SQL Editor, record it instead of re-running it.
+  const [{ exists } = { exists: false }] = await sql<{ exists: boolean }[]>`select to_regclass('public.documents') is not null as exists`;
+  if (exists) await sql`insert into _migrations (name) values ('001_init.sql') on conflict do nothing`;
   const applied = new Set((await sql<{ name: string }[]>`select name from _migrations`).map((r) => r.name));
   const files = (await readdir(dir)).filter((f) => f.endsWith(".sql")).sort();
 

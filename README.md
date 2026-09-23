@@ -117,7 +117,8 @@ Requires Node 20.6+.
 ```bash
 npm install                    # also installs the pre-commit safety hook
 cp .env.example .env.local     # then fill in the keys (see comments in the file)
-npm run db:migrate             # creates the tables and search function
+npm run db:migrate             # creates the tables and search function (needs DATABASE_URL)
+                               #   …or paste supabase/migrations/*.sql into the Supabase SQL Editor and click Run
 npm run ingest -- --sample     # load the fictional demo brand
 npm run ask                    # chat mode; follow-up questions work
 ```

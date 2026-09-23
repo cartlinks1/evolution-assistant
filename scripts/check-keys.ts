@@ -38,10 +38,10 @@ async function checkVoyage() {
 }
 
 async function checkSupabaseApi() {
-  const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SECRET_KEY;
-  if (!url || !key) return skip("Supabase", "SUPABASE_URL, SUPABASE_SECRET_KEY");
+  const key = process.env.SUPABASE_SECRET_KEY;
+  if (!process.env.SUPABASE_URL || !key) return skip("Supabase", "SUPABASE_URL, SUPABASE_SECRET_KEY");
   try {
-    const { error } = await createClient(url, key, { auth: { persistSession: false } })
+    const { error } = await createClient(config.supabaseUrl(), key, { auth: { persistSession: false } })
       .from("documents")
       .select("id", { head: true, count: "exact" });
     // "relation does not exist" just means migrations haven't run yet — the key itself worked.
