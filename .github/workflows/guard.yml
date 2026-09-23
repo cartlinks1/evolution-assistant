@@ -1,0 +1,13 @@
+# Second safety net: even if the local pre-commit hook is skipped,
+# every push is re-checked for private data and secrets.
+name: guard
+on: [push, pull_request]
+jobs:
+  no-private-data:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/check-staged.mjs --all

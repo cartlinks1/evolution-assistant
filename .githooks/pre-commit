@@ -1,0 +1,4 @@
+#!/bin/sh
+# Installed automatically by `npm install` (see "prepare" in package.json).
+# Blocks commits that include real documents, .env files, or anything that looks like a secret.
+exec node scripts/check-staged.mjs

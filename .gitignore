@@ -1,0 +1,25 @@
+# ─── REAL BUSINESS DATA — NEVER COMMIT ────────────────────────────
+# Your real documents (incl. dealer pricing) live in /data. This repo is
+# PUBLIC. Only /sample-data (a fictional brand) is safe to commit.
+/data/
+/exports/
+*.export.*
+/eval/results/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies / build output
+node_modules/
+.next/
+out/
+dist/
+*.tsbuildinfo
+next-env.d.ts
+
+# OS / editor
+.DS_Store
+*.log
+.vercel
