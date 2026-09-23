@@ -12,6 +12,7 @@ import { loadFile } from "../lib/loaders";
 import { readManifest } from "../lib/manifest";
 import { guardDealerPricing } from "../lib/dealer";
 import { toKeywordQuery } from "../lib/retrieval";
+import { normalizeContacts } from "../lib/contact";
 
 const sample = (p: string) => path.resolve("sample-data", p);
 
@@ -208,4 +209,13 @@ test("claims guard: a product NAME containing AS-4 is not a claim; 'AS-4 rated' 
   assert.equal(name.removed.length, 0);
   const claim = guardClaims([{ text: "It's AS-4 rated polycarbonate.", citations: [] }]);
   assert.equal(claim.removed.length, 1);
+});
+
+test("contacts: other emails and phone numbers are replaced with the configured ones", () => {
+  // Defaults from config (fictional demo values) unless CONTACT_* env vars are set.
+  const out = normalizeContacts("Email old@example.com or call (555) 123-4567.");
+  assert.ok(!out.includes("old@example.com"));
+  assert.ok(!out.includes("123-4567"));
+  // Measurements and years are not phone numbers.
+  assert.equal(normalizeContacts("900–1,000 ft/min since 2004"), "900–1,000 ft/min since 2004");
 });

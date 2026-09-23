@@ -12,6 +12,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { guardClaims, type CitedSegment } from "./claims";
 import { PRICING, config } from "./config";
+import { normalizeContacts } from "./contact";
 import { formatFitmentForClaude, guardSkus, knownCarts, lookupFitment, skusIn, type FitmentMatch } from "./fitment";
 import { planQuery, type ChatTurn, type QueryPlan } from "./planner";
 import { dealerReply, guardDealerPricing } from "./dealer";
@@ -237,7 +238,9 @@ export async function answerQuestion(opts: {
     });
     text = text.trimEnd() + marks.join("") + (seg.text.match(/\s+$/)?.[0] ?? "");
   });
-  text = text.trim();
+  // Customers always get the one configured email/phone, whatever a source document says.
+  text = normalizeContacts(text.trim());
+  for (const src of sources) src.citedText = src.citedText.map(normalizeContacts);
 
   if (claimsChecked.removed.length) {
     text += `\n\nFor certification and performance details, please contact our team at ${config.contact.phone}.`;
