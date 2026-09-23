@@ -45,7 +45,16 @@ const numbersIn = (s: string): string[] => s.match(/\d+(?:\.\d+)?/g) ?? [];
 const DECLINES_TO_CLAIM =
   /\b(don'?t|do not|can'?t|cannot|couldn'?t|unable to|not able to)\b[^.!?]*\b(have|find|confirm|quote|share|provide|see|verify)\b|\bno approved\b/i;
 
-const checkClaim: SentenceCheck = (sentence, citations) => {
+/**
+ * Product and line NAMES that contain a rating ("AS-4 Premium", "the AS-4 line") identify a
+ * product; they don't claim anything. They're blanked out before looking for claims, so
+ * "RDG-CCO-CLR (AS-4 Premium) fits your Onward" isn't mistaken for a safety claim, while
+ * "it's AS-4 rated" or "AS-4 compliant" still is.
+ */
+const PRODUCT_NAMES = /\bAS-?4 (Premium( Windshield)?|line|polycarbonate line|product line)\b/gi;
+
+const checkClaim: SentenceCheck = (rawSentence, citations) => {
+  const sentence = rawSentence.replace(PRODUCT_NAMES, "");
   if (!CLAIM_PATTERN.test(sentence)) return null;
   if (DECLINES_TO_CLAIM.test(sentence) && !/\d/.test(sentence)) return null;
   if (!citations.length) return "claim with no citation";

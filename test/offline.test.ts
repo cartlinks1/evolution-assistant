@@ -194,3 +194,18 @@ test("SKU guard: a SKU quoted in the cited source text is allowed", () => {
   );
   assert.equal(r.removed.length, 0);
 });
+
+test("SKU guard: long SKUs are read whole, and option SKUs of a matched windshield are allowed", () => {
+  const ok = guardSkus([{ text: "Choose RDG-CCO-LSV-CLR-WPF-MAG for film plus MagMount.", citations: [] }], ["RDG-CCO-LSV-CLR"]);
+  assert.equal(ok.removed.length, 0);
+  // RDG-CCO-CLR must not be accepted just because it's a prefix of the LSV SKU.
+  const bad = guardSkus([{ text: "It takes RDG-CCO-CLR.", citations: [] }], ["RDG-CCO-LSV-CLR"]);
+  assert.equal(bad.removed.length, 1);
+});
+
+test("claims guard: a product NAME containing AS-4 is not a claim; 'AS-4 rated' still is", () => {
+  const name = guardClaims([{ text: "Your 2021 Onward takes RDG-CCO-CLR (AS-4 Premium).", citations: [] }]);
+  assert.equal(name.removed.length, 0);
+  const claim = guardClaims([{ text: "It's AS-4 rated polycarbonate.", citations: [] }]);
+  assert.equal(claim.removed.length, 1);
+});

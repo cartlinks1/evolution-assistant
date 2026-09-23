@@ -84,7 +84,7 @@ export function parseFitmentRows(rows: Record<string, string>[]): FitmentRow[] {
         model: r[cModel]?.trim() ?? "",
         yearStart: start,
         yearEnd: end,
-        yearLabel: yearLabel || "All years",
+        yearLabel: yearLabel || "not specified",
         sku: r[cSku]?.trim().toUpperCase() ?? "",
         notes: (cNotes ? r[cNotes]?.trim() : "") || null,
       };
@@ -181,16 +181,18 @@ export function formatFitmentForClaude(q: FitmentQuery, matches: FitmentMatch[])
 // come from this question's exact fitment lookup, or appear in the quoted
 // source text its sentence cites. Otherwise the sentence is removed.
 
-/** Product SKUs look like BRAND-MODEL-TINT, e.g. RDG-CCP-CLR. */
-export const SKU_PATTERN = /\b[A-Z]{2,5}-[A-Z0-9]{2,5}-[A-Z]{2,4}\b/g;
+/** Product SKUs are 3–6 dash-separated parts: RDG-CCP-CLR, RDG-CCO-LSV-CLR-WPF-MAG. */
+export const SKU_PATTERN = /\b[A-Z]{2,5}(?:-[A-Z0-9]{2,5}){2,5}\b/g;
 
 export const skusIn = (s: string): string[] => [...new Set(s.toUpperCase().match(SKU_PATTERN) ?? [])];
 
 export function guardSkus(segments: CitedSegment[], lookupSkus: string[]): GuardResult {
-  const allowed = new Set(lookupSkus.map((s) => s.toUpperCase()));
+  const allowed = lookupSkus.map((s) => s.toUpperCase());
+  // An option SKU of a matched windshield (RDG-CCO-CLR-WPF for RDG-CCO-CLR) fits the same cart.
+  const fromLookup = (sku: string) => allowed.some((base) => sku === base || sku.startsWith(`${base}-`));
   return filterSentences(segments, (sentence, citations) => {
     const quoted = new Set(citations.flatMap((c) => skusIn(c.citedText)));
-    const unsupported = skusIn(sentence).filter((sku) => !allowed.has(sku) && !quoted.has(sku));
+    const unsupported = skusIn(sentence).filter((sku) => !fromLookup(sku) && !quoted.has(sku));
     return unsupported.length ? `SKU ${unsupported.join(", ")} not in the fitment lookup or cited text` : null;
   });
 }
