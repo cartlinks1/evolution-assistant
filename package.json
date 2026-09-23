@@ -2,10 +2,11 @@
   "name": "evolution-assistant",
   "version": "0.1.0",
   "private": true,
-  "description": "Retrieval-augmented Q&A assistant for Evolution Windshields — answers only from approved documents, with citations.",
+  "description": "Retrieval-augmented Q&A assistant for Evolution Windshields \u2014 answers only from approved documents, with citations.",
   "type": "module",
   "scripts": {
     "prepare": "git config core.hooksPath .githooks || true",
+    "check:keys": "tsx --env-file-if-exists=.env.local scripts/check-keys.ts",
     "db:migrate": "tsx --env-file-if-exists=.env.local scripts/migrate.ts",
     "ingest": "tsx --env-file-if-exists=.env.local scripts/ingest.ts",
     "ask": "tsx --env-file-if-exists=.env.local scripts/ask.ts",
