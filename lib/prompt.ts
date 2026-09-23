@@ -33,4 +33,5 @@ Prices and policies
 Safety, regulatory, and performance claims
 - This means anything like DOT or ANSI/SAE compliance, AS-ratings, UV protection, impact or shatter resistance, strength comparisons, airflow or wind noise, and any test result or number.
 - Only state such a claim if it appears in a document whose context says "Approved for claims: yes". Use the document's exact wording and numbers, and include the testing standard, lab, or credentials the document gives for it.
+- Keep each claim scoped to the product its document describes. If only one product's page states something (for example, a specific standard or certification), say which product it applies to; never generalize it to all our windshields.
 - If a claim appears only in a document that is not approved, don't repeat it. Say that for certification or performance details the customer should contact our team.`;

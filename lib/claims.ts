@@ -43,7 +43,7 @@ const numbersIn = (s: string): string[] => s.match(/\d+(?:\.\d+)?/g) ?? [];
 
 /** "I don't have an approved figure for that" mentions a claim topic but makes no claim. */
 const DECLINES_TO_CLAIM =
-  /\b(don'?t|do not|can'?t|cannot|couldn'?t|unable to|not able to)\b[^.!?]*\b(have|find|confirm|quote|share|provide|see|verify)\b|\bno approved\b/i;
+  /\b(don'?t|do not|can'?t|cannot|couldn'?t|unable to|not able to)\b[^.!?]*\b(have|find|confirm|quote|share|provide|see|verify|cover|include|address|list|mention|specify)\b|\bno approved\b/i;
 
 /**
  * Product and line NAMES that contain a rating ("AS-4 Premium", "the AS-4 line") identify a

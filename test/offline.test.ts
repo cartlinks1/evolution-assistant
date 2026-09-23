@@ -219,3 +219,10 @@ test("contacts: other emails and phone numbers are replaced with the configured 
   // Measurements and years are not phone numbers.
   assert.equal(normalizeContacts("900–1,000 ft/min since 2004"), "900–1,000 ft/min since 2004");
 });
+
+test("claims guard: 'the documents don't cover ...' is a disclaimer, not a claim", () => {
+  const r = guardClaims([
+    { text: "The documents don't cover state-by-state requirements, so for certification details in your area our team can help.", citations: [] },
+  ]);
+  assert.equal(r.removed.length, 0);
+});
