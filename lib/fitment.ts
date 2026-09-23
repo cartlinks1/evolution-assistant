@@ -11,6 +11,7 @@
 // ════════════════════════════════════════════════════════════════════
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { filterSentences, type CitedSegment, type GuardResult } from "./claims";
 import type { FitmentRow } from "./types";
 
 /** Header names we accept for each field (case-insensitive). */
@@ -173,4 +174,23 @@ export function formatFitmentForClaude(q: FitmentQuery, matches: FitmentMatch[])
       (m.notes ? ` (notes: ${m.notes})` : ""),
   );
   return `Fitment lookup for: ${asked}\n${lines.join("\n")}`;
+}
+
+// ─── SKU guard ──────────────────────────────────────────────────────
+// Code-level backstop for "never guess fitment": any SKU in the answer must
+// come from this question's exact fitment lookup, or appear in the quoted
+// source text its sentence cites. Otherwise the sentence is removed.
+
+/** Product SKUs look like BRAND-MODEL-TINT, e.g. RDG-CCP-CLR. */
+export const SKU_PATTERN = /\b[A-Z]{2,5}-[A-Z0-9]{2,5}-[A-Z]{2,4}\b/g;
+
+export const skusIn = (s: string): string[] => [...new Set(s.toUpperCase().match(SKU_PATTERN) ?? [])];
+
+export function guardSkus(segments: CitedSegment[], lookupSkus: string[]): GuardResult {
+  const allowed = new Set(lookupSkus.map((s) => s.toUpperCase()));
+  return filterSentences(segments, (sentence, citations) => {
+    const quoted = new Set(citations.flatMap((c) => skusIn(c.citedText)));
+    const unsupported = skusIn(sentence).filter((sku) => !allowed.has(sku) && !quoted.has(sku));
+    return unsupported.length ? `SKU ${unsupported.join(", ")} not in the fitment lookup or cited text` : null;
+  });
 }

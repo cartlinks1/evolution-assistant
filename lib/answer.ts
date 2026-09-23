@@ -12,7 +12,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { guardClaims, type CitedSegment } from "./claims";
 import { PRICING, config } from "./config";
-import { formatFitmentForClaude, knownCarts, lookupFitment, type FitmentMatch } from "./fitment";
+import { formatFitmentForClaude, guardSkus, knownCarts, lookupFitment, skusIn, type FitmentMatch } from "./fitment";
 import { planQuery, type ChatTurn, type QueryPlan } from "./planner";
 import { dealerReply, guardDealerPricing } from "./dealer";
 import { NO_ANSWER_MARKER, SYSTEM_PROMPT } from "./prompt";
@@ -113,7 +113,7 @@ export async function answerQuestion(opts: {
       source: {
         title: first?.documentTitle ?? "Fitment list",
         path: first?.documentPath ?? "",
-        section: matches.length ? `Rows ${matches.map((m) => m.rowNumber).join(", ")}` : "No matching rows",
+        section: matches.length ? `Row${matches.length > 1 ? "s" : ""} ${matches.map((m) => m.rowNumber).join(", ")}` : "No matching rows",
         approvedForClaims: false,
         lastUpdated: first?.lastUpdated ?? "",
       },
@@ -195,17 +195,34 @@ export async function answerQuestion(opts: {
   const couldNotAnswer = fullText.includes(NO_ANSWER_MARKER);
   for (const s of segments) s.text = s.text.replaceAll(NO_ANSWER_MARKER, "");
 
-  // Two code-level checks on the finished answer: unapproved claims, then any dealer pricing.
+  // Code-level checks on the finished answer: unapproved claims, dealer pricing, unsupported SKUs.
   const claimsChecked = guardClaims(segments);
   const pricingChecked = guardDealerPricing(claimsChecked.segments);
-  const guarded = { segments: pricingChecked.segments, removed: [...claimsChecked.removed, ...pricingChecked.removed] };
+  const skusChecked = guardSkus(pricingChecked.segments, matches.map((m) => m.sku));
+  const guarded = {
+    segments: skusChecked.segments,
+    removed: [...claimsChecked.removed, ...pricingChecked.removed, ...skusChecked.removed],
+  };
+
+  // A SKU that came from the fitment lookup is always credited to the fitment list, even when
+  // Claude attached its citation elsewhere — the lookup is where that fact actually came from.
+  const FITMENT_DOC = attempted ? 0 : -1;
+  const rowsFor = (text: string) =>
+    matches
+      .filter((m) => skusIn(text).includes(m.sku.toUpperCase()))
+      .map((m) => `Row ${m.rowNumber}: ${m.make} ${m.model}, years ${m.yearLabel} → SKU ${m.sku}`);
 
   const sources: Source[] = [];
   const numberFor = new Map<number, number>();
   let text = "";
   guarded.segments.forEach((seg, i) => {
     text += seg.text;
-    const idxs = [...new Set(segments[i]!.docIndexes)];
+    const original = segments[i]!;
+    // Pair each citation with the document it points to.
+    const cites = original.docIndexes.map((docIndex, k) => ({ docIndex, citedText: original.citations[k]!.citedText }));
+    const fitmentRows = FITMENT_DOC >= 0 ? rowsFor(seg.text) : [];
+    if (fitmentRows.length) for (const row of fitmentRows) cites.push({ docIndex: FITMENT_DOC, citedText: row });
+    const idxs = [...new Set(cites.map((c) => c.docIndex))];
     if (!seg.text.trim() || !idxs.length) return;
     const marks = idxs.map((docIndex) => {
       if (!numberFor.has(docIndex)) {
@@ -213,7 +230,9 @@ export async function answerQuestion(opts: {
         sources.push({ n: sources.length + 1, ...docs[docIndex]!.source, citedText: [] });
       }
       const src = sources[numberFor.get(docIndex)! - 1]!;
-      for (const c of segments[i]!.citations) if (!src.citedText.includes(c.citedText)) src.citedText.push(c.citedText);
+      for (const c of cites) {
+        if (c.docIndex === docIndex && !src.citedText.includes(c.citedText)) src.citedText.push(c.citedText);
+      }
       return `[${numberFor.get(docIndex)}]`;
     });
     text = text.trimEnd() + marks.join("") + (seg.text.match(/\s+$/)?.[0] ?? "");
@@ -225,6 +244,9 @@ export async function answerQuestion(opts: {
   }
   if (pricingChecked.removed.length) {
     text += `\n\n${dealerReply()}`;
+  }
+  if (skusChecked.removed.length) {
+    text += `\n\nI couldn't confirm the right part for your cart from our fitment list. ${escalationMessage()}`;
   }
 
   if (couldNotAnswer) {

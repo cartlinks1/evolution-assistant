@@ -7,7 +7,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { chunkMarkdown, packParagraphs, wordCount } from "../lib/chunking";
 import { guardClaims } from "../lib/claims";
-import { isFitmentCsv, parseYearRange, yearInRange } from "../lib/fitment";
+import { guardSkus, isFitmentCsv, parseYearRange, yearInRange } from "../lib/fitment";
 import { loadFile } from "../lib/loaders";
 import { readManifest } from "../lib/manifest";
 import { guardDealerPricing } from "../lib/dealer";
@@ -170,5 +170,27 @@ test("dealer guard: retail prices are kept", () => {
       citations: [{ citedText: "Expedited 2-day shipping is available for $49.", approvedForClaims: false }],
     },
   ]);
+  assert.equal(r.removed.length, 0);
+});
+
+test("SKU guard: SKUs from the fitment lookup are kept", () => {
+  const r = guardSkus([{ text: "Your 2019 Precedent takes RDG-CCP-CLR.", citations: [] }], ["RDG-CCP-CLR"]);
+  assert.equal(r.removed.length, 0);
+});
+
+test("SKU guard: a SKU that isn't in the lookup or cited text is removed", () => {
+  const r = guardSkus(
+    [{ text: "It probably takes RDG-CCO-CLR. Installation takes 30 minutes.", citations: [] }],
+    ["RDG-CCP-CLR"],
+  );
+  assert.equal(r.removed.length, 1);
+  assert.equal(r.segments[0]!.text.trim(), "Installation takes 30 minutes.");
+});
+
+test("SKU guard: a SKU quoted in the cited source text is allowed", () => {
+  const r = guardSkus(
+    [{ text: "We carry RDG-YDR-CLR.", citations: [{ citedText: "SKUs in this list: RDG-CCO-CLR, RDG-YDR-CLR.", approvedForClaims: false }] }],
+    [],
+  );
   assert.equal(r.removed.length, 0);
 });
