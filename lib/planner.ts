@@ -35,11 +35,12 @@ const PlanSchema = z.object({
     })
     .nullable()
     .describe("Only when the question is about which product fits a specific cart, or what a specific SKU fits. Otherwise null."),
-  dealer_pricing: z
+  dealer_inquiry: z
     .boolean()
     .describe(
-      "True if the message asks about dealer, wholesale, distributor, or tiered pricing, dealer discounts or margins, " +
-        "minimum advertised price, or what dealers pay. False for normal retail prices and shipping costs.",
+      "True if the message is about being or becoming a dealer, wholesaler, distributor, or reseller: dealer pricing, " +
+        "discounts, margins, or minimum advertised price, dealer applications, dealer ordering, or dealer program terms. " +
+        "False for ordinary customers asking about retail prices, shipping, or finding a local dealer to buy from.",
     ),
 });
 
@@ -54,7 +55,7 @@ Given the conversation so far and the customer's latest message:
    - year: a 4-digit model year if the customer gave one, else null.
    - sku: a product SKU if the customer mentioned one, else null.
    Otherwise set fitment to null.
-3. Set dealer_pricing to true if the customer is asking what dealers/wholesalers pay or about dealer price tiers, discounts, margins, or minimum advertised price. Retail prices and shipping costs are not dealer pricing.`;
+3. Set dealer_inquiry to true if the message is from or about a dealer/wholesaler/reseller relationship: dealer pricing or discounts, becoming a dealer, placing dealer or bulk-for-resale orders, or dealer program terms. Ordinary retail questions (prices, shipping, returns) are not dealer inquiries.`;
 
 export async function planQuery(
   client: Anthropic,
@@ -86,6 +87,6 @@ export async function planQuery(
   const usage = { input: response.usage.input_tokens, output: response.usage.output_tokens };
   // If parsing failed (or the request was declined), fall back to searching the raw question.
   const parsed = response.parsed_output;
-  if (!parsed) return { standalone_question: question, fitment: null, dealer_pricing: false, usage };
+  if (!parsed) return { standalone_question: question, fitment: null, dealer_inquiry: false, usage };
   return { ...parsed, usage };
 }

@@ -46,9 +46,9 @@ flowchart LR
 ### 1. Ingestion — preparing the documents
 `npm run ingest` reads every file in the data folder and:
 
-- **Tags it.** Its *audience* comes from the folder it's in (`public/` or `dealer/`). Its title,
-  last-updated date and **approved-for-claims** flag come from `manifest.csv`. The defaults are
-  the safe choice: not approved, and files outside those two folders are refused.
+- **Tags it.** Its title, last-updated date and **approved-for-claims** flag come from
+  `manifest.csv`. The default is the safe choice: not approved. Outdated files can be marked
+  `exclude`, and a `dealer/` folder is refused outright (see *Dealer questions* below).
 - **Chunks it** into passages of roughly 350 words, split along the document's own
   structure: headings in Markdown, pages in PDFs, rows in spreadsheets. A little text
   overlaps between neighbouring chunks so no idea gets cut in half.
@@ -65,12 +65,12 @@ flowchart LR
 ([`lib/answer.ts`](lib/answer.ts))
 
 1. **Plan.** A quick Claude call rewrites follow-ups into standalone questions ("what about
-   2018?" becomes "Does the clear windshield fit a 2018 Club Car Onward?") and pulls out the
-   make, model, year and SKU. ([`lib/planner.ts`](lib/planner.ts))
+   2018?" becomes "Does the clear windshield fit a 2018 Club Car Onward?"), pulls out the
+   make, model, year and SKU, and flags **dealer questions**, which get the email reply
+   straight away with no search at all. ([`lib/planner.ts`](lib/planner.ts))
 2. **Hybrid search.** This combines *meaning* search (embeddings) with *keyword* search (for
-   SKUs and model names) and merges the two ranked lists. **Dealer-only chunks are filtered
-   out inside the database** unless the request comes from a verified dealer.
-   ([`supabase/migrations/001_init.sql`](supabase/migrations/001_init.sql))
+   SKUs and model names) and merges the two ranked lists.
+   ([`supabase/migrations/`](supabase/migrations/))
 3. **Rerank.** A second model reads the question and each of the top 20 chunks side by side,
    scores how well each chunk answers it (0–1), and keeps the best 6.
 4. **Fitment lookup.** An exact database query: make = X, model = Y, and the year falls inside
@@ -93,8 +93,7 @@ that doesn't depend on the model's cooperation:
 
 | Rule | Enforced by |
 |---|---|
-| Dealer info only for dealers | Database query filter (the model never sees dealer text) |
-| **Dealer pricing is never stated — it's handled by email** | Planner flags pricing questions → fixed email reply before any search; prompt rule; output guard strips money sentences citing dealer docs ([`lib/pricing.ts`](lib/pricing.ts)); ingest warns when dealer docs contain prices |
+| **Dealer questions go to email, always** | Planner flags them → fixed email reply before any search; prompt rule; output guard strips any dealer/wholesale pricing sentence ([`lib/dealer.ts`](lib/dealer.ts)); ingest refuses a `dealer/` folder and warns about dealer pricing in documents |
 | Don't guess fitment | Exact SQL lookup; "no rows" is passed along explicitly |
 | Don't answer without sources | Relevance gate before the model; uncited answers blocked after |
 | Claims only from approved docs | Claims guard checks citations + numbers |
@@ -132,17 +131,24 @@ npm run ask                    # chat mode; follow-up questions work
 | `npm run ingest -- --sample` | Same, for the fictional `/sample-data` |
 | `npm run ask -- "question"` | Answer one question and show the chunks, scores and cost |
 | `npm run ask` | Chat mode with follow-ups |
-| `npm run ask -- --dealer …` | Include dealer-only documents (local admin tool only) |
 | `npm test` | Offline tests: chunking, fitment parsing, claims guard, loaders |
 | `npm run check:private` | Scan every tracked file for private data or secrets |
 
 ## Adding real documents
 
-1. Put files in `data/public/` or `data/dealer/`.
+1. Put files in `data/` (subfolders are fine for organizing).
 2. Add a row for each file to `data/manifest.csv`:
    `file,title,last_updated,approved_for_claims,exclude`
-3. Run `npm run ingest`. Its warnings flag anything odd: a public file that mentions dealer
+3. Run `npm run ingest`. Its warnings flag anything odd: a document that mentions dealer
    pricing, a PDF that looks scanned, or a file missing from the manifest.
+
+## Dealer questions
+
+Company policy is that **everything dealer-related is handled personally by email**: pricing,
+becoming a dealer, dealer orders, program terms. So there's no dealer login and no dealer-only
+content. Any dealer question gets one fixed reply pointing to the team's email address (set by
+`CONTACT_EMAIL`). Keeping that information out of the system entirely means there's nothing
+that could leak.
 
 ## Project layout
 
@@ -160,6 +166,6 @@ test/         offline tests
 - [x] **Phase 1:** Core RAG. Ingestion + CLI with retrieved chunks and scores.
 - [ ] **Phase 2:** Evaluation. ~25 questions with expected answers; pass/fail/made-up scorecard.
 - [ ] **Phase 3:** Web chat UI in the brand's style; sources under each answer; Shopify-embeddable widget.
-- [ ] **Phase 4:** Dealer magic-link login, lead capture, question logging.
+- [ ] **Phase 4:** Lead capture (name, email, cart) with email notification, and a log of every question and outcome.
 - [ ] **Phase 5:** Vercel deploy with rate limits and a hard monthly spending cap.
-- [ ] Later: sync fitment and the dealer list straight from Shopify.
+- [ ] Later: sync fitment straight from Shopify.

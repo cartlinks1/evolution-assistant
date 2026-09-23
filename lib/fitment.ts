@@ -121,17 +121,12 @@ type FitmentDbRow = {
 };
 
 /** Exact lookup. Returns [] when nothing matches — the caller must then say so, not guess. */
-export async function lookupFitment(
-  db: SupabaseClient,
-  q: FitmentQuery,
-  includeDealer: boolean,
-): Promise<FitmentMatch[]> {
+export async function lookupFitment(db: SupabaseClient, q: FitmentQuery): Promise<FitmentMatch[]> {
   if (!q.make && !q.model && !q.sku) return [];
 
   let query = db
     .from("fitment")
-    .select("row_number, make, model, year_start, year_end, year_label, sku, notes, documents(title, path, last_updated)")
-    .in("audience", includeDealer ? ["public", "dealer"] : ["public"]);
+    .select("row_number, make, model, year_start, year_end, year_label, sku, notes, documents(title, path, last_updated)");
 
   // ilike = case-insensitive equality here (wildcard characters are escaped).
   if (q.sku) query = query.ilike("sku", escapeLike(q.sku));
@@ -159,11 +154,8 @@ export async function lookupFitment(
 }
 
 /** Distinct make/model pairs — given to the query planner so it can map "CC Onward" → "Club Car" / "Onward". */
-export async function knownCarts(db: SupabaseClient, includeDealer: boolean): Promise<string[]> {
-  const { data, error } = await db
-    .from("fitment")
-    .select("make, model")
-    .in("audience", includeDealer ? ["public", "dealer"] : ["public"]);
+export async function knownCarts(db: SupabaseClient): Promise<string[]> {
+  const { data, error } = await db.from("fitment").select("make, model");
   if (error) throw new Error(`Could not load cart list: ${error.message}`);
   const set = new Set((data ?? []).map((r: { make: string; model: string }) => `${r.make} | ${r.model}`));
   return [...set].sort();

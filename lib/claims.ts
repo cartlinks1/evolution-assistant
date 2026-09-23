@@ -18,13 +18,12 @@
 
 export const CLAIM_PATTERN =
   /\b(DOT|FMVSS|ANSI|SAE|Z26(\.1)?|AS-?[1-9]|UV|ultra-?violet|impact|shatter\w*|unbreakable|bullet|airflow|aerodynamic\w*|drag|wind noise|certif\w*|complian\w*|conform\w*|street[- ]legal|tested|lab|rated|rating|stronger|strength|times (stronger|tougher)|\d+x (stronger|tougher|thicker))\b/i;
-// Note: a bare percentage is NOT a claim on its own ("35% dealer discount" is pricing).
+// Note: a bare percentage is NOT a claim on its own ("15% restocking fee" is pricing).
 // Percentages inside a claim sentence ("blocks 99% of UV") are still number-checked.
 
 export interface Citation {
   citedText: string;
   approvedForClaims: boolean;
-  audience: "public" | "dealer";
 }
 
 export interface CitedSegment {
@@ -79,7 +78,7 @@ function sentenceRanges(text: string): [number, number][] {
  * Claude's answer arrives as segments that can split a sentence ("On UV, yes: " + "it blocks
  * 99%…"[cited]). So we judge whole SENTENCES, each carrying the citations of every segment it
  * overlaps, then cut the rejected sentences back out of the segments.
- * Shared by the claims guard (below) and the dealer-pricing guard (pricing.ts).
+ * Shared by the claims guard (below) and the dealer-pricing guard (dealer.ts).
  */
 export function filterSentences(segments: CitedSegment[], check: SentenceCheck): GuardResult {
   const removed: GuardResult["removed"] = [];

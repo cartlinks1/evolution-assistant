@@ -2,7 +2,7 @@
 // ANSWER — the full pipeline for one question
 //
 //  1. PLAN      rewrite follow-ups into a standalone question; pull out fitment details
-//  2. RETRIEVE  hybrid search + rerank (audience-filtered in the database)
+//  2. RETRIEVE  hybrid search + rerank (dealer questions skip straight to the email reply)
 //  3. LOOKUP    exact fitment lookup, if the question is about fitment
 //  4. GATE      nothing relevant found? → escalate WITHOUT calling Claude
 //  5. GENERATE  Claude answers from the documents only, with API citations
@@ -14,7 +14,7 @@ import { guardClaims, type CitedSegment } from "./claims";
 import { PRICING, config } from "./config";
 import { formatFitmentForClaude, knownCarts, lookupFitment, type FitmentMatch } from "./fitment";
 import { planQuery, type ChatTurn, type QueryPlan } from "./planner";
-import { dealerPricingReply, guardDealerPricing } from "./pricing";
+import { dealerReply, guardDealerPricing } from "./dealer";
 import { NO_ANSWER_MARKER, SYSTEM_PROMPT } from "./prompt";
 import { retrieve, type RetrievalResult } from "./retrieval";
 import { db } from "./supabase";
@@ -24,7 +24,7 @@ export type EscalationReason =
   | "no_relevant_sources"
   | "model_could_not_answer"
   | "no_citations"
-  | "dealer_pricing"
+  | "dealer_inquiry"
   | "refusal";
 
 export interface Source {
@@ -32,7 +32,6 @@ export interface Source {
   title: string;
   path: string;
   section: string | null;
-  audience: string;
   approvedForClaims: boolean;
   lastUpdated: string;
   citedText: string[];
@@ -69,24 +68,22 @@ const client = () => (anthropic ??= new Anthropic({ apiKey: config.anthropicApiK
 export async function answerQuestion(opts: {
   question: string;
   history?: ChatTurn[];
-  /** Must come from a verified login on the server — never from user input. */
-  includeDealer?: boolean;
 }): Promise<AnswerResult> {
-  const { question, history = [], includeDealer = false } = opts;
+  const { question, history = [] } = opts;
   const usage = { model: config.claudeModel, inputTokens: 0, outputTokens: 0, costUsd: 0 };
 
   // 1. PLAN
-  const carts = await knownCarts(db(), includeDealer);
+  const carts = await knownCarts(db());
   const plan = await planQuery(client(), question, history, carts);
   usage.inputTokens += plan.usage.input;
   usage.outputTokens += plan.usage.output;
 
-  // Dealer pricing is never answered here — company policy is to handle it by email.
-  // Short-circuit before any search, so no pricing text is even retrieved.
-  if (plan.dealer_pricing) {
+  // Dealer matters are never answered here — company policy is to handle them by email.
+  // Short-circuit before any search.
+  if (plan.dealer_inquiry) {
     return finish({
       plan, retrieval: { candidates: [], relevant: [] }, fitment: { attempted: false, matches: [] }, claimsRemoved: [],
-      status: "escalated", escalationReason: "dealer_pricing", text: dealerPricingReply(), sources: [], usage,
+      status: "escalated", escalationReason: "dealer_inquiry", text: dealerReply(), sources: [], usage,
     });
   }
 
@@ -94,8 +91,8 @@ export async function answerQuestion(opts: {
   const fitmentQuery = plan.fitment;
   const attempted = !!(fitmentQuery && (fitmentQuery.make || fitmentQuery.model || fitmentQuery.sku));
   const [retrieval, matches] = await Promise.all([
-    retrieve(plan.standalone_question, includeDealer),
-    attempted ? lookupFitment(db(), fitmentQuery!, includeDealer) : Promise.resolve([]),
+    retrieve(plan.standalone_question),
+    attempted ? lookupFitment(db(), fitmentQuery!) : Promise.resolve([]),
   ]);
 
   const base = { plan, retrieval, fitment: { attempted, matches }, claimsRemoved: [] };
@@ -117,7 +114,6 @@ export async function answerQuestion(opts: {
         title: first?.documentTitle ?? "Fitment list",
         path: first?.documentPath ?? "",
         section: matches.length ? `Rows ${matches.map((m) => m.rowNumber).join(", ")}` : "No matching rows",
-        audience: "public",
         approvedForClaims: false,
         lastUpdated: first?.lastUpdated ?? "",
       },
@@ -127,7 +123,6 @@ export async function answerQuestion(opts: {
     docs.push({
       title: c.documentTitle + (c.section ? ` › ${c.section}` : ""),
       context: [
-        `Audience: ${c.audience}`,
         `Approved for claims: ${c.approvedForClaims ? "yes" : "no"}`,
         `Last updated: ${c.lastUpdated}`,
       ].join(" · "),
@@ -136,7 +131,6 @@ export async function answerQuestion(opts: {
         title: c.documentTitle,
         path: c.documentPath,
         section: c.section,
-        audience: c.audience,
         approvedForClaims: c.approvedForClaims,
         lastUpdated: c.lastUpdated,
       },
@@ -193,7 +187,6 @@ export async function answerQuestion(opts: {
       citations: cites.map((c) => ({
         citedText: c.citedText,
         approvedForClaims: docs[c.docIndex]?.source.approvedForClaims ?? false,
-        audience: docs[c.docIndex]?.source.audience === "dealer" ? ("dealer" as const) : ("public" as const),
       })),
     });
   }
@@ -231,7 +224,7 @@ export async function answerQuestion(opts: {
     text += `\n\nFor certification and performance details, please contact our team at ${config.contact.phone}.`;
   }
   if (pricingChecked.removed.length) {
-    text += `\n\n${dealerPricingReply()}`;
+    text += `\n\n${dealerReply()}`;
   }
 
   if (couldNotAnswer) {

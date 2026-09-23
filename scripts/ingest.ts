@@ -16,9 +16,9 @@ import { withContext, wordCount } from "../lib/chunking";
 import { config } from "../lib/config";
 import { SUPPORTED_EXTENSIONS, loadFile } from "../lib/loaders";
 import { normalizePath, readManifest, titleFromFilename } from "../lib/manifest";
-import { MONEY_PATTERN } from "../lib/pricing";
+import { DEALER_WORDS, MONEY_PATTERN } from "../lib/dealer";
 import { db } from "../lib/supabase";
-import type { Audience, DocumentMeta } from "../lib/types";
+import type { DocumentMeta } from "../lib/types";
 import { embed } from "../lib/voyage";
 
 const args = process.argv.slice(2);
@@ -36,9 +36,6 @@ async function walk(dir: string): Promise<string[]> {
   }
   return out;
 }
-
-/** Words that suggest a file might be dealer-only. Only a warning — the folder decides. */
-const DEALER_HINTS = /dealer|wholesale|price\s*tier|pricing\s*tier|net\s*price|msrp\s*vs|margin|distributor/i;
 
 async function main() {
   console.log(`\nIngesting from ${path.relative(process.cwd(), dataDir) || "."}/\n`);
@@ -65,9 +62,9 @@ async function main() {
       skipped.push(`${rel} — unsupported file type (${ext || "none"})`);
       continue;
     }
-    const top = rel.split("/")[0];
-    if (top !== "public" && top !== "dealer") {
-      skipped.push(`${rel} — must be inside public/ or dealer/ (that's how audience is decided)`);
+    // There is no dealer-only content: every dealer question is answered with "please email us".
+    if (/(^|\/)dealers?\//i.test(rel)) {
+      skipped.push(`${rel} — dealer documents aren't used (dealer questions go to email)`);
       continue;
     }
     const blocked = blocklist.find((b) => rel.toLowerCase().includes(b));
@@ -88,7 +85,6 @@ async function main() {
       meta: {
         path: rel,
         title: entry?.title ?? titleFromFilename(rel),
-        audience: top as Audience,
         approvedForClaims: entry?.approvedForClaims ?? false,
         lastUpdated: entry?.lastUpdated ?? mtime,
       },
@@ -113,26 +109,20 @@ async function main() {
       existingByPath.delete(meta.path);
 
       if (prior && prior.content_hash === hash && !force) {
-        summary.push({ file: meta.path, audience: meta.audience, approved: meta.approvedForClaims ? "yes" : "no", status: "unchanged" });
+        summary.push({ file: meta.path, approved: meta.approvedForClaims ? "yes" : "no", status: "unchanged" });
         continue;
       }
 
       const loaded = await loadFile(abs);
       for (const w of loaded.warnings) console.warn(`⚠  ${meta.path}: ${w}`);
-      if (meta.audience === "public") {
-        const text = loaded.chunks.map((c) => c.content).join(" ") + " " + meta.path;
-        if (DEALER_HINTS.test(text)) {
-          console.warn(`⚠  ${meta.path} is in public/ but mentions dealer/wholesale pricing terms. Double-check it belongs there.`);
-        }
-      }
-
-      // Dealer pricing is never served by the assistant (it's handled by email). The answer-time
-      // guards would strip it anyway, but it's safest if prices aren't in the index at all.
-      const priced = loaded.chunks.filter((c) => MONEY_PATTERN.test(c.content));
-      if (priced.length && (meta.audience === "dealer" || DEALER_HINTS.test(meta.path))) {
+      // Dealer pricing is never served (it's handled by email). The answer-time guards would strip
+      // it anyway, but it's safest if it isn't in the index at all — so flag it for removal.
+      const dealerPriced = loaded.chunks.filter((c) => MONEY_PATTERN.test(c.content) && DEALER_WORDS.test(c.content));
+      if (dealerPriced.length) {
         console.warn(
-          `⚠  ${meta.path} contains prices in ${priced.length} section(s): ${[...new Set(priced.map((c) => c.section ?? "(intro)"))].join("; ")}.\n` +
-            `   The assistant will never state dealer pricing, but please remove prices from this document if you can.`,
+          `⚠  ${meta.path} seems to mention dealer/wholesale pricing in: ` +
+            `${[...new Set(dealerPriced.map((c) => c.section ?? "(intro)"))].join("; ")}.\n` +
+            `   The assistant will never state it, but please remove it from this document.`,
         );
       }
 
@@ -149,7 +139,6 @@ async function main() {
         .insert({
           path: meta.path,
           title: meta.title,
-          audience: meta.audience,
           approved_for_claims: meta.approvedForClaims,
           last_updated: meta.lastUpdated,
           content_hash: hash,
@@ -164,7 +153,6 @@ async function main() {
           chunk_index: i,
           section: c.section,
           content: c.content,
-          audience: meta.audience,
           embedding: vectors[i],
         }));
         for (let i = 0; i < chunkRows.length; i += 100) {
@@ -183,7 +171,6 @@ async function main() {
               year_label: r.yearLabel,
               sku: r.sku,
               notes: r.notes,
-              audience: meta.audience,
             })),
           );
           if (error) throw new Error(error.message);
@@ -197,7 +184,6 @@ async function main() {
       const words = loaded.chunks.reduce((n, c) => n + wordCount(c.content), 0);
       summary.push({
         file: meta.path,
-        audience: meta.audience,
         approved: meta.approvedForClaims ? "yes" : "no",
         status: prior ? "updated" : "added",
         chunks: loaded.chunks.length,

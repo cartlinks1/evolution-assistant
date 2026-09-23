@@ -1,11 +1,8 @@
-export type Audience = "public" | "dealer";
-
 /** Metadata tags attached to every source document. */
 export interface DocumentMeta {
-  /** Path relative to the data folder, e.g. "public/install-guide.md". */
+  /** Path relative to the data folder, e.g. "install-guide.pdf". */
   path: string;
   title: string;
-  audience: Audience;
   approvedForClaims: boolean;
   /** ISO date, YYYY-MM-DD. */
   lastUpdated: string;
@@ -34,7 +31,6 @@ export interface RetrievedChunk {
   chunkId: number;
   documentPath: string;
   documentTitle: string;
-  audience: Audience;
   approvedForClaims: boolean;
   lastUpdated: string;
   section: string | null;

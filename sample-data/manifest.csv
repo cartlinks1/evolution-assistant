@@ -1,10 +1,9 @@
 file,title,last_updated,approved_for_claims,exclude
-public/product-specs.md,Trail Series Product Specifications,2026-03-15,true,false
-public/brochure.md,Spring Brochure,2026-02-01,false,false
-public/care-and-cleaning.md,Care & Cleaning,2026-01-10,false,false
-public/warranty-returns.md,Warranty & Returns Policy,2026-01-10,false,false
-public/shipping.md,Shipping Policy,2026-04-02,false,false
-public/install-guide.pdf,Installation Guide,2025-11-20,false,false
-public/fitment.csv,Fitment List,2026-05-01,false,false
-public/old-differentiators.md,Why Ridgeline (outdated),2023-06-01,false,true
-dealer/dealer-program.md,Dealer Program Terms,2026-01-02,false,false
+product-specs.md,Trail Series Product Specifications,2026-03-15,true,false
+brochure.md,Spring Brochure,2026-02-01,false,false
+care-and-cleaning.md,Care & Cleaning,2026-01-10,false,false
+warranty-returns.md,Warranty & Returns Policy,2026-01-10,false,false
+shipping.md,Shipping Policy,2026-04-02,false,false
+install-guide.pdf,Installation Guide,2025-11-20,false,false
+fitment.csv,Fitment List,2026-05-01,false,false
+old-differentiators.md,Why Ridgeline (outdated),2023-06-01,false,true

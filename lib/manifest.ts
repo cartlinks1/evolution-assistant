@@ -4,11 +4,9 @@
 // manifest.csv sits at the top of the data folder. One row per file:
 //
 //   file,title,last_updated,approved_for_claims,exclude
-//   public/install-guide.pdf,Installation Guide,2026-03-01,true,false
+//   install-guide.pdf,Installation Guide,2026-03-01,true,false
 //
 // Rules (safe by default):
-//   • audience comes from the FOLDER (public/ or dealer/), never from the manifest,
-//     so a typo in a spreadsheet can't make dealer pricing public.
 //   • approved_for_claims defaults to FALSE when missing or unreadable.
 //   • exclude=true means "never ingest this file" (e.g. outdated pages).
 //   • last_updated falls back to the file's modified date if blank.

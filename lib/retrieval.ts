@@ -4,11 +4,6 @@
 //   question ──embed──▶ hybrid search (meaning + keywords, top 20)
 //                        ──▶ rerank (read question + chunk together, score 0–1)
 //                        ──▶ keep the best 6 that clear the relevance bar
-//
-// The audience filter happens inside the database query (hybrid_search), so
-// dealer chunks are never even candidates unless includeDealer is true — and
-// includeDealer is decided by the server from a verified login, never by
-// anything the user types.
 // ════════════════════════════════════════════════════════════════════
 
 import { withContext } from "./chunking";
@@ -27,7 +22,7 @@ export function toKeywordQuery(question: string): string {
 }
 
 type SearchRow = {
-  chunk_id: number; document_path: string; document_title: string; audience: "public" | "dealer";
+  chunk_id: number; document_path: string; document_title: string;
   approved_for_claims: boolean; last_updated: string; section: string | null; content: string;
   vector_similarity: number | null; keyword_score: number | null; rrf_score: number;
 };
@@ -39,13 +34,12 @@ export interface RetrievalResult {
   relevant: RetrievedChunk[];
 }
 
-export async function retrieve(question: string, includeDealer: boolean): Promise<RetrievalResult> {
+export async function retrieve(question: string): Promise<RetrievalResult> {
   const { vectors } = await embed([question], "query");
 
   const { data, error } = await db().rpc("hybrid_search", {
     query_embedding: vectors[0],
     keyword_query: toKeywordQuery(question),
-    include_dealer: includeDealer,
     match_count: config.searchCandidates,
   });
   if (error) throw new Error(`Search failed: ${error.message}`);
@@ -61,7 +55,6 @@ export async function retrieve(question: string, includeDealer: boolean): Promis
       chunkId: r.chunk_id,
       documentPath: r.document_path,
       documentTitle: r.document_title,
-      audience: r.audience,
       approvedForClaims: r.approved_for_claims,
       lastUpdated: r.last_updated,
       section: r.section,

@@ -10,7 +10,7 @@ import { guardClaims } from "../lib/claims";
 import { isFitmentCsv, parseYearRange, yearInRange } from "../lib/fitment";
 import { loadFile } from "../lib/loaders";
 import { readManifest } from "../lib/manifest";
-import { guardDealerPricing } from "../lib/pricing";
+import { guardDealerPricing } from "../lib/dealer";
 import { toKeywordQuery } from "../lib/retrieval";
 
 const sample = (p: string) => path.resolve("sample-data", p);
@@ -51,7 +51,7 @@ test("a year inside a range matches; outside does not", () => {
 });
 
 test("fitment CSV is detected and parsed into structured rows", async () => {
-  const loaded = await loadFile(sample("public/fitment.csv"));
+  const loaded = await loadFile(sample("fitment.csv"));
   assert.ok(loaded.fitment);
   assert.equal(loaded.fitment.length, 6);
   const onward = loaded.fitment.find((r) => r.model === "Onward")!;
@@ -63,7 +63,7 @@ test("fitment CSV is detected and parsed into structured rows", async () => {
 });
 
 test("PDF text is extracted page by page", async () => {
-  const loaded = await loadFile(sample("public/install-guide.pdf"));
+  const loaded = await loadFile(sample("install-guide.pdf"));
   assert.equal(loaded.warnings.length, 0, loaded.warnings.join("; "));
   const all = loaded.chunks.map((c) => c.content).join(" ");
   assert.match(all, /8 ft-lb/);
@@ -72,9 +72,9 @@ test("PDF text is extracted page by page", async () => {
 
 test("manifest: flags default safe, exclusions honored", async () => {
   const m = await readManifest(path.resolve("sample-data"));
-  assert.equal(m.get("public/product-specs.md")?.approvedForClaims, true);
-  assert.equal(m.get("public/brochure.md")?.approvedForClaims, false);
-  assert.equal(m.get("public/old-differentiators.md")?.exclude, true);
+  assert.equal(m.get("product-specs.md")?.approvedForClaims, true);
+  assert.equal(m.get("brochure.md")?.approvedForClaims, false);
+  assert.equal(m.get("old-differentiators.md")?.exclude, true);
 });
 
 test("keyword query ORs the words together and splits SKUs", () => {
@@ -85,7 +85,7 @@ test("claims guard: approved + matching numbers passes", () => {
   const r = guardClaims([
     {
       text: "It blocks 99% of UVA and UVB light, per ASTM E903 testing by Northfield Test Labs.",
-      citations: [{ citedText: "Blocks 99% of UVA and UVB light, per ASTM E903 testing by Northfield Test Labs (report NTL-2304).", approvedForClaims: true, audience: "public" }],
+      citations: [{ citedText: "Blocks 99% of UVA and UVB light, per ASTM E903 testing by Northfield Test Labs (report NTL-2304).", approvedForClaims: true }],
     },
   ]);
   assert.equal(r.removed.length, 0);
@@ -95,7 +95,7 @@ test("claims guard: claim from a non-approved document is removed", () => {
   const r = guardClaims([
     {
       text: "They're 250 times stronger than glass. Riders love them.",
-      citations: [{ citedText: "virtually unbreakable and 250 times stronger than glass", approvedForClaims: false, audience: "public" }],
+      citations: [{ citedText: "virtually unbreakable and 250 times stronger than glass", approvedForClaims: false }],
     },
   ]);
   assert.equal(r.removed.length, 1);
@@ -104,7 +104,7 @@ test("claims guard: claim from a non-approved document is removed", () => {
 
 test("claims guard: a changed number is caught", () => {
   const r = guardClaims([
-    { text: "It blocks 100% of UV light.", citations: [{ citedText: "Blocks 99% of UVA and UVB light", approvedForClaims: true, audience: "public" }] },
+    { text: "It blocks 100% of UV light.", citations: [{ citedText: "Blocks 99% of UVA and UVB light", approvedForClaims: true }] },
   ]);
   assert.equal(r.removed.length, 1);
   assert.match(r.removed[0]!.reason, /100/);
@@ -121,7 +121,7 @@ test("claims guard: an uncited lead-in is judged with the cited rest of its sent
     { text: "On UV, yes: ", citations: [] },
     {
       text: "the Trail Series blocks 99% of UVA and UVB light, per ASTM E903 testing.",
-      citations: [{ citedText: "Blocks 99% of UVA and UVB light, per ASTM E903 testing by Northfield Test Labs", approvedForClaims: true, audience: "public" }],
+      citations: [{ citedText: "Blocks 99% of UVA and UVB light, per ASTM E903 testing by Northfield Test Labs", approvedForClaims: true }],
     },
   ]);
   assert.equal(r.removed.length, 0);
@@ -137,7 +137,7 @@ test("claims guard: declining to make a claim is not a claim", () => {
 
 test("claims guard: 'Z26.1' doesn't split a sentence", () => {
   const r = guardClaims([
-    { text: "It's certified under ANSI/SAE Z26.1-1996.", citations: [{ citedText: "certified AS-4 under ANSI/SAE Z26.1-1996", approvedForClaims: true, audience: "public" }] },
+    { text: "It's certified under ANSI/SAE Z26.1-1996.", citations: [{ citedText: "certified AS-4 under ANSI/SAE Z26.1-1996", approvedForClaims: true }] },
   ]);
   assert.equal(r.removed.length, 0);
 });
@@ -147,27 +147,27 @@ test("claims guard: pricing percentages are not treated as claims", () => {
   assert.equal(r.removed.length, 0);
 });
 
-test("pricing guard: a price cited from a dealer document is removed", () => {
+test("dealer guard: a dealer price is removed, the rest kept", () => {
   const r = guardDealerPricing([
     {
       text: "Silver dealers pay $199 per clear panel. Orders ship by freight.",
-      citations: [{ citedText: "| Silver | 25–99 | $199 | $229 |", approvedForClaims: false, audience: "dealer" }],
+      citations: [{ citedText: "| Silver | 25–99 | $199 | $229 |", approvedForClaims: false }],
     },
   ]);
   assert.equal(r.removed.length, 1);
   assert.equal(r.segments[0]!.text.trim(), "Orders ship by freight.");
 });
 
-test("pricing guard: dealer-pricing wording is removed even without a dealer citation", () => {
+test("dealer guard: wholesale pricing without a citation is removed", () => {
   const r = guardDealerPricing([{ text: "Wholesale price is $179.", citations: [] }]);
   assert.equal(r.removed.length, 1);
 });
 
-test("pricing guard: retail prices from public documents are kept", () => {
+test("dealer guard: retail prices are kept", () => {
   const r = guardDealerPricing([
     {
       text: "Expedited 2-day shipping is available for $49.",
-      citations: [{ citedText: "Expedited 2-day shipping is available for $49.", approvedForClaims: false, audience: "public" }],
+      citations: [{ citedText: "Expedited 2-day shipping is available for $49.", approvedForClaims: false }],
     },
   ]);
   assert.equal(r.removed.length, 0);

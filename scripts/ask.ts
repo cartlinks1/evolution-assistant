@@ -3,11 +3,7 @@
 //
 //   npm run ask -- "Does the clear windshield fit a 2019 Club Car Precedent?"
 //   npm run ask                  → chat mode: follow-up questions keep context
-//   npm run ask -- --dealer ...  → include dealer-only documents
 //   npm run ask -- --brief ...   → answer + sources only, no retrieval details
-//
-// (--dealer exists because this is YOUR local admin tool. In the web app,
-//  dealer access comes only from a verified login, never from a flag.)
 // ════════════════════════════════════════════════════════════════════
 
 import { createInterface } from "node:readline/promises";
@@ -16,7 +12,6 @@ import { config } from "../lib/config";
 import type { ChatTurn } from "../lib/planner";
 
 const args = process.argv.slice(2);
-const includeDealer = args.includes("--dealer");
 const brief = args.includes("--brief");
 const questionArg = args.filter((a) => !a.startsWith("--")).join(" ").trim();
 
@@ -37,7 +32,7 @@ function print(r: AnswerResult) {
   if (r.sources.length) {
     console.log(`\n${bold("Sources")}`);
     for (const s of r.sources) {
-      const tags = [s.audience, s.approvedForClaims ? "approved for claims" : null, s.lastUpdated && `updated ${s.lastUpdated}`]
+      const tags = [s.approvedForClaims ? "approved for claims" : null, s.lastUpdated && `updated ${s.lastUpdated}`]
         .filter(Boolean)
         .join(" · ");
       console.log(`  [${s.n}] ${s.title}${s.section ? ` › ${s.section}` : ""}  ${dim(`(${[s.path, tags].filter(Boolean).join(" · ")})`)}`);
@@ -76,7 +71,6 @@ function print(r: AnswerResult) {
         vector: fmt(c.vectorSimilarity),
         keyword: fmt(c.keywordScore),
         rrf: fmt(c.rrfScore, 4),
-        aud: c.audience,
         chunk: preview(`${c.documentTitle}${c.section ? ` › ${c.section}` : ""}: ${c.content}`),
       })),
     );
@@ -84,27 +78,26 @@ function print(r: AnswerResult) {
 
   console.log(
     dim(
-      `  ${r.usage.model} · ${r.usage.inputTokens.toLocaleString()} in / ${r.usage.outputTokens.toLocaleString()} out tokens · ≈ $${r.usage.costUsd.toFixed(4)}` +
-        (includeDealer ? " · DEALER MODE" : ""),
+      `  ${r.usage.model} · ${r.usage.inputTokens.toLocaleString()} in / ${r.usage.outputTokens.toLocaleString()} out tokens · ≈ $${r.usage.costUsd.toFixed(4)}`,
     ),
   );
 }
 
 async function main() {
   if (questionArg) {
-    print(await answerQuestion({ question: questionArg, includeDealer }));
+    print(await answerQuestion({ question: questionArg }));
     return;
   }
 
   // Chat mode — keeps a short conversation history so follow-ups work.
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   const history: ChatTurn[] = [];
-  console.log(`Ask a question (empty line to quit)${includeDealer ? " — DEALER MODE" : ""}.`);
+  console.log("Ask a question (empty line to quit).");
   for (;;) {
     const q = (await rl.question("\n› ")).trim();
     if (!q) break;
     try {
-      const r = await answerQuestion({ question: q, history, includeDealer });
+      const r = await answerQuestion({ question: q, history });
       print(r);
       history.push({ role: "user", content: q }, { role: "assistant", content: r.text });
     } catch (e) {
