@@ -12,6 +12,8 @@ non-technical and uses this as a portfolio piece: explain choices in plain Engli
   (`INGEST_BLOCKLIST=differentiators` + `exclude=true` in `data/manifest.csv`).
 - Dealer filtering happens in SQL (`hybrid_search`, `fitment.audience`). `includeDealer` must come
   from verified server-side auth, never from request input.
+- **Dealer pricing is never stated by the assistant**, to anyone (company policy, 2026-09-23): pricing
+  questions get a fixed "email us" reply (`lib/pricing.ts`). Don't add dealer prices to sample data.
 - Claims (DOT/UV/impact/airflow/test numbers) are allowed only from `approved_for_claims` docs;
   `lib/claims.ts` enforces this after generation. Keep it in place.
 - Build in phases and stop for the owner's review after each (see README roadmap).

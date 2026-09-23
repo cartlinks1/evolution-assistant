@@ -35,6 +35,12 @@ const PlanSchema = z.object({
     })
     .nullable()
     .describe("Only when the question is about which product fits a specific cart, or what a specific SKU fits. Otherwise null."),
+  dealer_pricing: z
+    .boolean()
+    .describe(
+      "True if the message asks about dealer, wholesale, distributor, or tiered pricing, dealer discounts or margins, " +
+        "minimum advertised price, or what dealers pay. False for normal retail prices and shipping costs.",
+    ),
 });
 
 export type QueryPlan = z.infer<typeof PlanSchema> & { usage: { input: number; output: number } };
@@ -47,7 +53,8 @@ Given the conversation so far and the customer's latest message:
    - make/model: when the customer's cart matches one in the KNOWN CARTS list (even if abbreviated or misspelled, e.g. "CC Precedent" → "Club Car" / "Precedent"), copy the make and model spelling from that list exactly. If it doesn't match anything in the list, use the customer's own words — never substitute a different cart.
    - year: a 4-digit model year if the customer gave one, else null.
    - sku: a product SKU if the customer mentioned one, else null.
-   Otherwise set fitment to null.`;
+   Otherwise set fitment to null.
+3. Set dealer_pricing to true if the customer is asking what dealers/wholesalers pay or about dealer price tiers, discounts, margins, or minimum advertised price. Retail prices and shipping costs are not dealer pricing.`;
 
 export async function planQuery(
   client: Anthropic,
@@ -79,6 +86,6 @@ export async function planQuery(
   const usage = { input: response.usage.input_tokens, output: response.usage.output_tokens };
   // If parsing failed (or the request was declined), fall back to searching the raw question.
   const parsed = response.parsed_output;
-  if (!parsed) return { standalone_question: question, fitment: null, usage };
+  if (!parsed) return { standalone_question: question, fitment: null, dealer_pricing: false, usage };
   return { ...parsed, usage };
 }

@@ -21,10 +21,19 @@ export const CLAIM_PATTERN =
 // Note: a bare percentage is NOT a claim on its own ("35% dealer discount" is pricing).
 // Percentages inside a claim sentence ("blocks 99% of UV") are still number-checked.
 
+export interface Citation {
+  citedText: string;
+  approvedForClaims: boolean;
+  audience: "public" | "dealer";
+}
+
 export interface CitedSegment {
   text: string;
-  citations: { citedText: string; approvedForClaims: boolean }[];
+  citations: Citation[];
 }
+
+/** Returns a reason to remove the sentence, or null to keep it. */
+export type SentenceCheck = (sentence: string, citations: Citation[]) => string | null;
 
 export interface GuardResult {
   segments: CitedSegment[];
@@ -33,8 +42,13 @@ export interface GuardResult {
 
 const numbersIn = (s: string): string[] => s.match(/\d+(?:\.\d+)?/g) ?? [];
 
-function checkSentence(sentence: string, citations: CitedSegment["citations"]): string | null {
+/** "I don't have an approved figure for that" mentions a claim topic but makes no claim. */
+const DECLINES_TO_CLAIM =
+  /\b(don'?t|do not|can'?t|cannot|couldn'?t|unable to|not able to)\b[^.!?]*\b(have|find|confirm|quote|share|provide|see|verify)\b|\bno approved\b/i;
+
+const checkClaim: SentenceCheck = (sentence, citations) => {
   if (!CLAIM_PATTERN.test(sentence)) return null;
+  if (DECLINES_TO_CLAIM.test(sentence) && !/\d/.test(sentence)) return null;
   if (!citations.length) return "claim with no citation";
   const approved = citations.filter((c) => c.approvedForClaims);
   if (!approved.length) return "claim cited only from non-approved document(s)";
@@ -42,11 +56,7 @@ function checkSentence(sentence: string, citations: CitedSegment["citations"]): 
   const missing = numbersIn(sentence).filter((n) => !numbersIn(source).includes(n));
   if (missing.length) return `number(s) ${missing.join(", ")} not found in the approved source text`;
   return null;
-}
-
-/** "I don't have an approved figure for that" mentions a claim topic but makes no claim. */
-const DECLINES_TO_CLAIM =
-  /\b(don'?t|do not|can'?t|cannot|couldn'?t|unable to|not able to)\b[^.!?]*\b(have|find|confirm|quote|share|provide|see|verify)\b|\bno approved\b/i;
+};
 
 /** Sentence boundaries: . ! ? followed by whitespace or the end (so "Z26.1" and "3.5" don't split). */
 function sentenceRanges(text: string): [number, number][] {
@@ -69,8 +79,9 @@ function sentenceRanges(text: string): [number, number][] {
  * Claude's answer arrives as segments that can split a sentence ("On UV, yes: " + "it blocks
  * 99%…"[cited]). So we judge whole SENTENCES, each carrying the citations of every segment it
  * overlaps, then cut the rejected sentences back out of the segments.
+ * Shared by the claims guard (below) and the dealer-pricing guard (pricing.ts).
  */
-export function guardClaims(segments: CitedSegment[]): GuardResult {
+export function filterSentences(segments: CitedSegment[], check: SentenceCheck): GuardResult {
   const removed: GuardResult["removed"] = [];
   const full = segments.map((s) => s.text).join("");
   const spans: { start: number; end: number; seg: CitedSegment }[] = [];
@@ -84,11 +95,10 @@ export function guardClaims(segments: CitedSegment[]): GuardResult {
   for (const [s, e] of sentenceRanges(full)) {
     const sentence = full.slice(s, e).trim();
     if (!sentence) continue;
-    if (DECLINES_TO_CLAIM.test(sentence) && !/\d/.test(sentence)) continue;
     const citations = spans
       .filter((sp) => sp.start < e && sp.end > s && full.slice(Math.max(sp.start, s), Math.min(sp.end, e)).trim())
       .flatMap((sp) => sp.seg.citations);
-    const reason = checkSentence(sentence, citations);
+    const reason = check(sentence, citations);
     if (reason) {
       removed.push({ sentence, reason });
       cut.push([s, e]);
@@ -105,3 +115,5 @@ export function guardClaims(segments: CitedSegment[]): GuardResult {
   });
   return { segments: kept, removed };
 }
+
+export const guardClaims = (segments: CitedSegment[]) => filterSentences(segments, checkClaim);

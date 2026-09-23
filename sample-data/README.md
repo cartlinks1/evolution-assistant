@@ -19,6 +19,6 @@ It deliberately includes a few traps, so you can watch the safeguards work:
 |---|---|---|
 | `public/brochure.md` | Marketing claims ("250 times stronger than glass") in a document **not** approved for claims | Claims guard strips them; prompt refuses them |
 | `public/old-differentiators.md` | Outdated specs and a wrong stamp code | `exclude=true` in the manifest, so it's never ingested |
-| `dealer/dealer-program.md` | Dealer pricing | Database audience filter; invisible to public questions |
+| `dealer/dealer-program.md` | Dealer-only program terms (dealer pricing is never answered; it goes to email) | Database audience filter; pricing questions short-circuit to the email reply |
 
 Run `npm run ingest -- --sample`, then try `npm run ask`.

@@ -14,6 +14,7 @@ import { guardClaims, type CitedSegment } from "./claims";
 import { PRICING, config } from "./config";
 import { formatFitmentForClaude, knownCarts, lookupFitment, type FitmentMatch } from "./fitment";
 import { planQuery, type ChatTurn, type QueryPlan } from "./planner";
+import { dealerPricingReply, guardDealerPricing } from "./pricing";
 import { NO_ANSWER_MARKER, SYSTEM_PROMPT } from "./prompt";
 import { retrieve, type RetrievalResult } from "./retrieval";
 import { db } from "./supabase";
@@ -23,6 +24,7 @@ export type EscalationReason =
   | "no_relevant_sources"
   | "model_could_not_answer"
   | "no_citations"
+  | "dealer_pricing"
   | "refusal";
 
 export interface Source {
@@ -78,6 +80,15 @@ export async function answerQuestion(opts: {
   const plan = await planQuery(client(), question, history, carts);
   usage.inputTokens += plan.usage.input;
   usage.outputTokens += plan.usage.output;
+
+  // Dealer pricing is never answered here — company policy is to handle it by email.
+  // Short-circuit before any search, so no pricing text is even retrieved.
+  if (plan.dealer_pricing) {
+    return finish({
+      plan, retrieval: { candidates: [], relevant: [] }, fitment: { attempted: false, matches: [] }, claimsRemoved: [],
+      status: "escalated", escalationReason: "dealer_pricing", text: dealerPricingReply(), sources: [], usage,
+    });
+  }
 
   // 2. RETRIEVE + 3. LOOKUP (in parallel)
   const fitmentQuery = plan.fitment;
@@ -182,6 +193,7 @@ export async function answerQuestion(opts: {
       citations: cites.map((c) => ({
         citedText: c.citedText,
         approvedForClaims: docs[c.docIndex]?.source.approvedForClaims ?? false,
+        audience: docs[c.docIndex]?.source.audience === "dealer" ? ("dealer" as const) : ("public" as const),
       })),
     });
   }
@@ -190,7 +202,10 @@ export async function answerQuestion(opts: {
   const couldNotAnswer = fullText.includes(NO_ANSWER_MARKER);
   for (const s of segments) s.text = s.text.replaceAll(NO_ANSWER_MARKER, "");
 
-  const guarded = guardClaims(segments);
+  // Two code-level checks on the finished answer: unapproved claims, then any dealer pricing.
+  const claimsChecked = guardClaims(segments);
+  const pricingChecked = guardDealerPricing(claimsChecked.segments);
+  const guarded = { segments: pricingChecked.segments, removed: [...claimsChecked.removed, ...pricingChecked.removed] };
 
   const sources: Source[] = [];
   const numberFor = new Map<number, number>();
@@ -212,8 +227,11 @@ export async function answerQuestion(opts: {
   });
   text = text.trim();
 
-  if (guarded.removed.length) {
+  if (claimsChecked.removed.length) {
     text += `\n\nFor certification and performance details, please contact our team at ${config.contact.phone}.`;
+  }
+  if (pricingChecked.removed.length) {
+    text += `\n\n${dealerPricingReply()}`;
   }
 
   if (couldNotAnswer) {

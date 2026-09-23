@@ -94,6 +94,7 @@ that doesn't depend on the model's cooperation:
 | Rule | Enforced by |
 |---|---|
 | Dealer info only for dealers | Database query filter (the model never sees dealer text) |
+| **Dealer pricing is never stated — it's handled by email** | Planner flags pricing questions → fixed email reply before any search; prompt rule; output guard strips money sentences citing dealer docs ([`lib/pricing.ts`](lib/pricing.ts)); ingest warns when dealer docs contain prices |
 | Don't guess fitment | Exact SQL lookup; "no rows" is passed along explicitly |
 | Don't answer without sources | Relevance gate before the model; uncited answers blocked after |
 | Claims only from approved docs | Claims guard checks citations + numbers |

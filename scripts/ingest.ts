@@ -16,6 +16,7 @@ import { withContext, wordCount } from "../lib/chunking";
 import { config } from "../lib/config";
 import { SUPPORTED_EXTENSIONS, loadFile } from "../lib/loaders";
 import { normalizePath, readManifest, titleFromFilename } from "../lib/manifest";
+import { MONEY_PATTERN } from "../lib/pricing";
 import { db } from "../lib/supabase";
 import type { Audience, DocumentMeta } from "../lib/types";
 import { embed } from "../lib/voyage";
@@ -123,6 +124,16 @@ async function main() {
         if (DEALER_HINTS.test(text)) {
           console.warn(`⚠  ${meta.path} is in public/ but mentions dealer/wholesale pricing terms. Double-check it belongs there.`);
         }
+      }
+
+      // Dealer pricing is never served by the assistant (it's handled by email). The answer-time
+      // guards would strip it anyway, but it's safest if prices aren't in the index at all.
+      const priced = loaded.chunks.filter((c) => MONEY_PATTERN.test(c.content));
+      if (priced.length && (meta.audience === "dealer" || DEALER_HINTS.test(meta.path))) {
+        console.warn(
+          `⚠  ${meta.path} contains prices in ${priced.length} section(s): ${[...new Set(priced.map((c) => c.section ?? "(intro)"))].join("; ")}.\n` +
+            `   The assistant will never state dealer pricing, but please remove prices from this document if you can.`,
+        );
       }
 
       // 1. Embed first — if this fails, the old version stays in place untouched.
