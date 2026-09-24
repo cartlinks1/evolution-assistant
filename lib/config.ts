@@ -1,8 +1,17 @@
 // Central place for settings. Every secret comes from environment variables —
 // nothing sensitive is ever written in code.
 
+/** Accepted alternative names for settings (hosting dashboards make it easy to shorten a name). */
+export const SETTING_ALIASES: Record<string, string[]> = {
+  VOYAGE_API_KEY: ["VOYAGE_KEY"],
+  SUPABASE_SECRET_KEY: ["SUPABASE_SECRET"],
+};
+
+export const readSetting = (name: string): string | undefined =>
+  [name, ...(SETTING_ALIASES[name] ?? [])].map((n) => process.env[n]).find(Boolean);
+
 function required(name: string): string {
-  const value = process.env[name];
+  const value = readSetting(name);
   if (!value) {
     throw new Error(`Missing ${name}. Copy .env.example to .env.local and fill it in.`);
   }
