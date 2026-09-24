@@ -1,0 +1,69 @@
+/* Evolution brand: navy + orange (from the Expo brochure). */
+:root {
+  --navy: #12304a;
+  --navy-2: #1b4466;
+  --orange: #f7941d;
+  --ink: #1d2a36;
+  --muted: #5f6f7e;
+  --line: #e2e8ee;
+  --bg: #f4f7fa;
+  --user: #12304a;
+  --assistant: #ffffff;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.5 Inter, -apple-system, system-ui, sans-serif; }
+
+.page { min-height: 100%; display: flex; justify-content: center; padding: 24px 16px; }
+.page .chat { width: 100%; max-width: 720px; height: calc(100vh - 48px); border-radius: 16px; box-shadow: 0 10px 40px rgba(18, 48, 74, .12); }
+
+.chat { display: flex; flex-direction: column; background: var(--bg); overflow: hidden; }
+.chat.embedded { height: 100vh; }
+
+.chat-header { display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: var(--navy); color: #fff; }
+.chat-header img { border-radius: 8px; background: #fff; }
+.brand { font: 800 15px/1.1 Montserrat, sans-serif; letter-spacing: .04em; }
+.brand span { font-weight: 700; font-size: 11px; letter-spacing: .18em; opacity: .85; margin-left: 2px; }
+.tagline { font-size: 12px; opacity: .8; margin-top: 2px; }
+.close { margin-left: auto; background: transparent; border: 0; color: #fff; font-size: 26px; line-height: 1; cursor: pointer; padding: 0 4px; }
+
+.messages { flex: 1; overflow-y: auto; padding: 16px 14px 8px; }
+.welcome p { background: var(--assistant); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; margin: 0 0 10px; }
+.starters { display: flex; flex-wrap: wrap; gap: 8px; }
+.starters button { border: 1px solid var(--navy-2); background: #fff; color: var(--navy); border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 13px; cursor: pointer; }
+.starters button:hover { background: var(--navy); color: #fff; }
+
+.msg { display: flex; flex-direction: column; margin: 8px 0; }
+.msg.user { align-items: flex-end; }
+.bubble { max-width: 88%; padding: 10px 12px; border-radius: 14px; overflow-wrap: anywhere; }
+.msg.user .bubble { background: var(--user); color: #fff; border-bottom-right-radius: 4px; white-space: pre-wrap; }
+.msg.assistant .bubble { background: var(--assistant); border: 1px solid var(--line); border-bottom-left-radius: 4px; }
+.bubble p { margin: 0 0 8px; } .bubble p:last-child { margin: 0; }
+.bubble ul { margin: 4px 0 8px; padding-left: 18px; }
+
+.cite { display: inline-block; min-width: 16px; padding: 0 4px; margin-left: 2px; border-radius: 8px; background: #fdecd6; color: #9a5300; font-size: 10px; font-weight: 600; text-align: center; line-height: 16px; vertical-align: super; }
+.sources { max-width: 88%; margin-top: 4px; padding-left: 4px; font-size: 12px; color: var(--muted); }
+.sources-label { font-weight: 600; text-transform: uppercase; letter-spacing: .06em; font-size: 10px; margin-bottom: 2px; }
+.source-title { background: none; border: 0; padding: 2px 0; font: inherit; color: var(--navy-2); cursor: pointer; text-align: left; }
+.source-title .cite { vertical-align: baseline; margin: 0 2px 0 0; }
+.source-section { color: var(--muted); }
+blockquote { margin: 2px 0 6px 20px; padding: 4px 8px; border-left: 3px solid var(--orange); background: #fff; color: var(--ink); font-size: 12px; }
+
+.typing { display: inline-flex; gap: 4px; align-items: center; padding: 12px 14px; }
+.typing span { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); animation: blink 1.2s infinite ease-in-out; }
+.typing span:nth-child(2) { animation-delay: .15s; } .typing span:nth-child(3) { animation-delay: .3s; }
+@keyframes blink { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
+
+.composer { display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--line); background: #fff; }
+.composer textarea { flex: 1; resize: none; border: 1px solid var(--line); border-radius: 12px; padding: 9px 12px; font: inherit; max-height: 120px; }
+.composer textarea:focus { outline: 2px solid var(--orange); outline-offset: -1px; }
+.composer button { width: 42px; border: 0; border-radius: 12px; background: var(--orange); color: #fff; font-size: 16px; cursor: pointer; }
+.composer button:disabled { opacity: .45; cursor: default; }
+.fineprint { padding: 0 12px 10px; background: #fff; font-size: 11px; color: var(--muted); text-align: center; }
+.fineprint a { color: var(--navy-2); }
+
+@media (max-width: 520px) {
+  .page { padding: 0; }
+  .page .chat { height: 100vh; border-radius: 0; }
+  .bubble, .sources { max-width: 94%; }
+}

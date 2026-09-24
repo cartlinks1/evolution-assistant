@@ -59,9 +59,10 @@ export interface AnswerResult {
   latencyMs: number;
 }
 
+// No "leave your details" here: nothing on the website collects them yet, so the
+// customer is pointed straight to email/phone.
 export const escalationMessage = () =>
-  `Our team can help with that. Call us at ${config.contact.phone}, or share your name, email, ` +
-  `and your cart's make, model, and year, and we'll get back to you.`;
+  `Our team can help with that. Email ${config.contact.email} or call ${config.contact.phone}.`;
 
 /** A document handed to Claude, and where it came from (for the sources list). */
 interface ProvidedDoc {
