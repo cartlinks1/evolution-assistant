@@ -19,7 +19,7 @@ import {
 } from "./fitment";
 import { planQuery, type ChatTurn, type QueryPlan } from "./planner";
 import { dealerReply, guardDealerPricing } from "./dealer";
-import { NO_ANSWER_MARKER, SYSTEM_PROMPT } from "./prompt";
+import { NO_ANSWER_MARKER, systemPrompt } from "./prompt";
 import { retrieve, type RetrievalResult } from "./retrieval";
 import { db } from "./supabase";
 
@@ -181,7 +181,7 @@ export async function answerQuestion(opts: {
   const response = await client().beta.messages.create({
     model: config.claudeModel,
     max_tokens: 16000,
-    system: SYSTEM_PROMPT,
+    system: systemPrompt(),
     messages,
     output_config: { effort: "medium" },
     // If Claude's safety classifiers decline a request, retry automatically on

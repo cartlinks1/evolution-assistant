@@ -19,7 +19,7 @@ import path from "node:path";
 import { answerQuestion, type AnswerResult } from "../lib/answer";
 import { PRICING, config } from "../lib/config";
 import { checkBehavior, checkContent, judge, verdict, JUDGE_MODEL, type EvalCase, type JudgeResult, type Verdict } from "../lib/eval/grade";
-import { SYSTEM_PROMPT } from "../lib/prompt";
+import { systemPrompt } from "../lib/prompt";
 
 // ─── Options ────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
@@ -180,7 +180,7 @@ async function runOne(c: EvalCase, rep: number): Promise<Row | null> {
 
   // Full transcript for click-through: what Claude saw, and what it said.
   const trace = [
-    { role: "system", content: SYSTEM_PROMPT },
+    { role: "system", content: systemPrompt() },
     ...(c.history ?? []).map((t) => ({ role: t.role, content: t.content })),
     {
       role: "user",
