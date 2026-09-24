@@ -2,6 +2,7 @@
 // the claims guard, manifest rules, and the file loaders on the sample data.
 // Run with: npm test
 
+import "./setup-env"; // must be first: sets required contact settings before modules load
 import assert from "node:assert/strict";
 import path from "node:path";
 import { test } from "node:test";
@@ -216,7 +217,6 @@ test("claims guard: a product NAME containing AS-4 is not a claim; 'AS-4 rated' 
 });
 
 test("contacts: other emails and phone numbers are replaced with the configured ones", () => {
-  // Defaults from config (fictional demo values) unless CONTACT_* env vars are set.
   const out = normalizeContacts("Email old@example.com or call (555) 123-4567.");
   assert.ok(!out.includes("old@example.com"));
   assert.ok(!out.includes("123-4567"));

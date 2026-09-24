@@ -38,11 +38,15 @@ export const config = {
   chunkMaxWords: 500,
   chunkOverlapWords: 50,
 
-  /** Escalation contact shown when the assistant can't answer. Real values live in .env.local
-   *  (this repo is public); the defaults are the fictional demo brand's. */
+  /** Escalation contact shown to customers. Required (no fallback): a live site must never show a
+   *  placeholder address. Real values live in .env.local / the host's settings — this repo is public. */
   contact: {
-    phone: process.env.CONTACT_PHONE || "555-010-0199",
-    email: process.env.CONTACT_EMAIL || "team@ridgeline-shields.example",
+    get phone() {
+      return required("CONTACT_PHONE");
+    },
+    get email() {
+      return required("CONTACT_EMAIL");
+    },
   },
 } as const;
 

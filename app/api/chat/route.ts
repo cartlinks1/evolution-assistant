@@ -23,6 +23,20 @@ export const maxDuration = 60;
 const json = (body: unknown, status = 200) => Response.json(body, { status });
 
 export async function POST(req: Request) {
+  try {
+    return await handle(req);
+  } catch (e) {
+    // Anything unexpected (e.g. a missing setting) still gets a helpful reply, never a blank error.
+    console.error(e);
+    let contact = "";
+    try {
+      contact = ` ${escalationMessage()}`;
+    } catch {}
+    return json({ text: `Sorry, something went wrong on our end.${contact}`, sources: [], status: "error" }, 500);
+  }
+}
+
+async function handle(req: Request): Promise<Response> {
   // 1. Only our own chat page may call this (browsers always send Origin on POST).
   const origin = req.headers.get("origin");
   const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
