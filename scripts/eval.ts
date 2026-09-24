@@ -95,7 +95,12 @@ const price = (model: string, usage: { input_tokens: number; output_tokens: numb
 };
 
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
-  return Promise.race([p, new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`timed out after ${ms / 1000}s`)), ms))]);
+  let timer: NodeJS.Timeout | undefined;
+  const timeout = new Promise<T>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`timed out after ${ms / 1000}s`)), ms);
+  });
+  // Clear the timer either way, or it keeps the process alive after the run finishes.
+  return Promise.race([p, timeout]).finally(() => clearTimeout(timer));
 }
 
 // ─── One case ───────────────────────────────────────────────────────

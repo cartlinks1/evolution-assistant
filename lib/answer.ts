@@ -144,7 +144,8 @@ export async function answerQuestion(opts: {
         `Approved for claims: ${c.approvedForClaims ? "yes" : "no"}`,
         `Last updated: ${c.lastUpdated}`,
       ].join(" · "),
-      data: c.content,
+      // Contact details are normalized in the source itself, so the answer and its citation agree.
+      data: normalizeContacts(c.content),
       source: {
         title: c.documentTitle,
         path: c.documentPath,
