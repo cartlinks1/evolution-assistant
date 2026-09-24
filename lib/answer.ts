@@ -13,7 +13,10 @@ import Anthropic from "@anthropic-ai/sdk";
 import { guardClaims, type CitedSegment } from "./claims";
 import { PRICING, config } from "./config";
 import { normalizeContacts } from "./contact";
-import { formatFitmentForClaude, guardSkus, knownCarts, lookupFitment, skusIn, type FitmentMatch } from "./fitment";
+import {
+  fitmentLine, formatFitmentForClaude, guardSkus, knownCarts, lookupFitment, productName, scrubSkus, skuNames, skusIn,
+  type FitmentMatch,
+} from "./fitment";
 import { planQuery, type ChatTurn, type QueryPlan } from "./planner";
 import { dealerReply, guardDealerPricing } from "./dealer";
 import { NO_ANSWER_MARKER, SYSTEM_PROMPT } from "./prompt";
@@ -208,10 +211,17 @@ export async function answerQuestion(opts: {
   // A SKU that came from the fitment lookup is always credited to the fitment list, even when
   // Claude attached its citation elsewhere — the lookup is where that fact actually came from.
   const FITMENT_DOC = attempted ? 0 : -1;
-  const rowsFor = (text: string) =>
-    matches
-      .filter((m) => skusIn(text).includes(m.sku.toUpperCase()))
-      .map((m) => `Row ${m.rowNumber}: ${m.make} ${m.model}, years ${m.yearLabel} → SKU ${m.sku}`);
+  const rowsFor = (text: string) => {
+    const t = text.toLowerCase();
+    return matches
+      .filter(
+        (m) =>
+          skusIn(text).includes(m.sku.toUpperCase()) ||
+          t.includes(productName(m).toLowerCase()) ||
+          t.includes(`${m.make} ${m.model}`.toLowerCase()),
+      )
+      .map(fitmentLine);
+  };
 
   const sources: Source[] = [];
   const numberFor = new Map<number, number>();
@@ -238,9 +248,11 @@ export async function answerQuestion(opts: {
     });
     text = text.trimEnd() + marks.join("") + (seg.text.match(/\s+$/)?.[0] ?? "");
   });
-  // Customers always get the one configured email/phone, whatever a source document says.
-  text = normalizeContacts(text.trim());
-  for (const src of sources) src.citedText = src.citedText.map(normalizeContacts);
+  // Customers always get the one configured email/phone, whatever a source document says,
+  // and never see a SKU — any that slipped through are replaced with the product's name.
+  const names = await skuNames(db());
+  text = scrubSkus(normalizeContacts(text.trim()), names);
+  for (const src of sources) src.citedText = src.citedText.map((q) => scrubSkus(normalizeContacts(q), names));
 
   if (claimsChecked.removed.length) {
     text += `\n\nFor certification and performance details, please contact our team at ${config.contact.phone}.`;

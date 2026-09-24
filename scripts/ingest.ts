@@ -170,6 +170,7 @@ async function main() {
               year_end: r.yearEnd,
               year_label: r.yearLabel,
               sku: r.sku,
+              product: r.product,
               notes: r.notes,
             })),
           );

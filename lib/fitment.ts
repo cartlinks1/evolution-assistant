@@ -20,6 +20,7 @@ const HEADER_ALIASES: Record<keyof Omit<FitmentRow, "rowNumber" | "yearStart" | 
   model: ["model", "cart model"],
   yearLabel: ["year range", "years", "year_range", "year", "model years"],
   sku: ["sku", "part number", "part", "variant sku"],
+  product: ["product", "product name", "windshield"],
   notes: ["notes", "note", "comments", "fitment notes"],
 };
 
@@ -72,7 +73,7 @@ export function parseFitmentRows(rows: Record<string, string>[]): FitmentRow[] {
   const headers = Object.keys(rows[0]!);
   const col = (k: keyof typeof HEADER_ALIASES) => findHeader(headers, HEADER_ALIASES[k]);
   const cMake = col("make")!, cModel = col("model")!, cSku = col("sku")!;
-  const cYear = col("yearLabel"), cNotes = col("notes");
+  const cYear = col("yearLabel"), cNotes = col("notes"), cProduct = col("product");
 
   return rows
     .map((r, i) => {
@@ -86,6 +87,7 @@ export function parseFitmentRows(rows: Record<string, string>[]): FitmentRow[] {
         yearEnd: end,
         yearLabel: yearLabel || "not specified",
         sku: r[cSku]?.trim().toUpperCase() ?? "",
+        product: (cProduct ? r[cProduct]?.trim() : "") || null,
         notes: (cNotes ? r[cNotes]?.trim() : "") || null,
       };
     })
@@ -117,7 +119,7 @@ export interface FitmentMatch extends FitmentRow {
 
 type FitmentDbRow = {
   row_number: number; make: string; model: string; year_start: number | null; year_end: number | null;
-  year_label: string; sku: string; notes: string | null;
+  year_label: string; sku: string; product: string | null; notes: string | null;
   documents: { title: string; path: string; last_updated: string } | null;
 };
 
@@ -127,7 +129,7 @@ export async function lookupFitment(db: SupabaseClient, q: FitmentQuery): Promis
 
   let query = db
     .from("fitment")
-    .select("row_number, make, model, year_start, year_end, year_label, sku, notes, documents(title, path, last_updated)");
+    .select("row_number, make, model, year_start, year_end, year_label, sku, product, notes, documents(title, path, last_updated)");
 
   // ilike = case-insensitive equality here (wildcard characters are escaped).
   if (q.sku) query = query.ilike("sku", escapeLike(q.sku));
@@ -147,6 +149,7 @@ export async function lookupFitment(db: SupabaseClient, q: FitmentQuery): Promis
     yearEnd: r.year_end,
     yearLabel: r.year_label,
     sku: r.sku,
+    product: r.product,
     notes: r.notes,
     documentTitle: r.documents?.title ?? "Fitment list",
     documentPath: r.documents?.path ?? "",
@@ -162,18 +165,49 @@ export async function knownCarts(db: SupabaseClient): Promise<string[]> {
   return [...set].sort();
 }
 
-/** Render lookup results as a plain-text "document" Claude can read and cite. */
+/** Customer-facing name for a fitment row (falls back to a generic name if the CSV has none). */
+export const productName = (r: Pick<FitmentRow, "product" | "make" | "model">) =>
+  r.product || `windshield for the ${r.make} ${r.model}`;
+
+/** One fitment row as Claude sees it: product NAME, never the SKU. */
+export const fitmentLine = (m: FitmentMatch) =>
+  `Row ${m.rowNumber}: ${m.make} ${m.model}, years ${m.yearLabel} → ${productName(m)}` + (m.notes ? ` (notes: ${m.notes})` : "");
+
+/** Render lookup results as a plain-text "document" Claude can read and cite. SKUs are left out on purpose. */
 export function formatFitmentForClaude(q: FitmentQuery, matches: FitmentMatch[]): string {
-  const asked = [q.make, q.model, q.year, q.sku].filter(Boolean).join(" ");
+  const asked = [q.make, q.model, q.year].filter(Boolean).join(" ") || "the product the customer named";
   if (!matches.length) {
-    return `Fitment lookup for: ${asked}\nResult: NO MATCHING ROWS in the fitment list. This cart/year/SKU is not listed.`;
+    return `Fitment lookup for: ${asked}\nResult: NO MATCHING ROWS in the fitment list. This cart/year is not listed.`;
   }
-  const lines = matches.map(
-    (m) =>
-      `Row ${m.rowNumber}: ${m.make} ${m.model}, years ${m.yearLabel} → SKU ${m.sku}` +
-      (m.notes ? ` (notes: ${m.notes})` : ""),
-  );
-  return `Fitment lookup for: ${asked}\n${lines.join("\n")}`;
+  return `Fitment lookup for: ${asked}\n${matches.map(fitmentLine).join("\n")}`;
+}
+
+/** SKU → product name for every fitment row, used to scrub any SKU that reaches an answer. */
+export async function skuNames(db: SupabaseClient): Promise<Map<string, string>> {
+  const { data, error } = await db.from("fitment").select("sku, product, make, model");
+  if (error) throw new Error(`Could not load product names: ${error.message}`);
+  const map = new Map<string, string>();
+  for (const r of (data ?? []) as { sku: string; product: string | null; make: string; model: string }[]) {
+    if (!map.has(r.sku.toUpperCase())) map.set(r.sku.toUpperCase(), productName(r));
+  }
+  return map;
+}
+
+const OPTION_NAMES: Record<string, string> = { WPF: "Windshield Protection Film", MAG: "MagMount" };
+
+/**
+ * Customers never see SKUs. Replace any SKU in the answer with its product name
+ * (plus options: "…-WPF-MAG" → "with Windshield Protection Film and MagMount").
+ * Unknown SKUs become "this windshield".
+ */
+export function scrubSkus(text: string, names: Map<string, string>): string {
+  return text.replace(SKU_PATTERN, (found) => {
+    const sku = found.toUpperCase();
+    const base = [...names.keys()].filter((k) => sku === k || sku.startsWith(`${k}-`)).sort((a, b) => b.length - a.length)[0];
+    if (!base) return "this windshield";
+    const options = sku.slice(base.length).split("-").filter(Boolean).map((o) => OPTION_NAMES[o]).filter(Boolean);
+    return names.get(base)! + (options.length ? ` with ${options.join(" and ")}` : "");
+  });
 }
 
 // ─── SKU guard ──────────────────────────────────────────────────────

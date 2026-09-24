@@ -26,9 +26,7 @@ export const MONEY_PATTERN = /\$\s?\d|\b\d[\d,.]*\s?(dollars|usd)\b|\b\d+\s?%\s?
 export const DEALER_WORDS =
   /\b(dealers?|dealerships?|wholesale|distributors?|resellers?|pricing tiers?|price tiers?|tiered|margins?|minimum advertised|net price)\b/i;
 
-export const dealerReply = () =>
-  `For dealer questions, including pricing, becoming a dealer, and placing dealer orders, ` +
-  `please email ${config.contact.email} and our team will take care of you directly.`;
+export const dealerReply = () => `For dealer pricing and information, please contact ${config.contact.email}.`;
 
 const checkDealerPricing: SentenceCheck = (sentence) =>
   MONEY_PATTERN.test(sentence) && DEALER_WORDS.test(sentence) ? "dealer/wholesale pricing" : null;

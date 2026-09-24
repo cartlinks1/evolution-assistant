@@ -23,6 +23,8 @@ export interface FitmentRow {
   yearEnd: number | null;
   yearLabel: string;
   sku: string;
+  /** Customer-facing product name ("Evolution AS-4 Premium Windshield for Club Car"). SKUs are never shown. */
+  product: string | null;
   notes: string | null;
 }
 

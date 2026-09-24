@@ -1,7 +1,7 @@
-make,model,year range,sku,notes
-Club Car,Precedent,2004–2023,RDG-CCP-CLR,Fits all Precedent and Tempo models in this range
-Club Car,Precedent,2004–2023,RDG-CCP-TNT,
-Club Car,Onward,2017–Present,RDG-CCO-CLR,Not compatible with lifted Onward models using the factory roof extension
-Club Car,Tempo,2018–2023,RDG-CCP-CLR,Uses the Precedent panel
-E-Z-GO,RXV,2008–2024,RDG-EZR-CLR,
-Yamaha,Drive2,2017–2022,RDG-YDR-CLR,Requires the included spacer pads on 2017 models
+make,model,year range,product,sku,notes
+Club Car,Precedent,2004–2023,Ridgeline Trail Series Windshield for Club Car,RDG-CCP-CLR,Fits all Precedent and Tempo models in this range
+Club Car,Precedent,2004–2023,Ridgeline Trail Series Windshield for Club Car (Smoke Tint),RDG-CCP-TNT,
+Club Car,Onward,2017–Present,Ridgeline Trail Series Windshield for Club Car Onward,RDG-CCO-CLR,Not compatible with lifted Onward models using the factory roof extension
+Club Car,Tempo,2018–2023,Ridgeline Trail Series Windshield for Club Car,RDG-CCP-CLR,Uses the Precedent panel
+E-Z-GO,RXV,2008–2024,Ridgeline Trail Series Windshield for E-Z-GO RXV,RDG-EZR-CLR,
+Yamaha,Drive2,2017–2022,Ridgeline Trail Series Windshield for Yamaha Drive2,RDG-YDR-CLR,Requires the included spacer pads on 2017 models

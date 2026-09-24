@@ -7,7 +7,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { chunkMarkdown, packParagraphs, wordCount } from "../lib/chunking";
 import { guardClaims } from "../lib/claims";
-import { guardSkus, isFitmentCsv, parseYearRange, yearInRange } from "../lib/fitment";
+import { guardSkus, isFitmentCsv, parseYearRange, scrubSkus, yearInRange } from "../lib/fitment";
 import { loadFile } from "../lib/loaders";
 import { readManifest } from "../lib/manifest";
 import { guardDealerPricing } from "../lib/dealer";
@@ -57,6 +57,7 @@ test("fitment CSV is detected and parsed into structured rows", async () => {
   assert.equal(loaded.fitment.length, 6);
   const onward = loaded.fitment.find((r) => r.model === "Onward")!;
   assert.equal(onward.sku, "RDG-CCO-CLR");
+  assert.equal(onward.product, "Ridgeline Trail Series Windshield for Club Car Onward");
   assert.equal(onward.yearStart, 2017);
   assert.equal(onward.yearEnd, null);
   assert.equal(loaded.chunks.length, 1, "one overview chunk for broad search");
@@ -225,4 +226,18 @@ test("claims guard: 'the documents don't cover ...' is a disclaimer, not a claim
     { text: "The documents don't cover state-by-state requirements, so for certification details in your area our team can help.", citations: [] },
   ]);
   assert.equal(r.removed.length, 0);
+});
+
+test("SKU scrub: customers see product names, never SKUs", () => {
+  const names = new Map([
+    ["RDG-CCO-CLR", "Ridgeline Trail Series Windshield for Club Car Onward"],
+    ["RDG-CCO-LSV-CLR", "Ridgeline Street-Legal Windshield for Club Car Onward LSV"],
+  ]);
+  assert.equal(scrubSkus("You need RDG-CCO-CLR.", names), "You need Ridgeline Trail Series Windshield for Club Car Onward.");
+  // Longest matching base wins, and option suffixes become words.
+  assert.equal(
+    scrubSkus("Order RDG-CCO-LSV-CLR-WPF-MAG.", names),
+    "Order Ridgeline Street-Legal Windshield for Club Car Onward LSV with Windshield Protection Film and MagMount.",
+  );
+  assert.equal(scrubSkus("Try RDG-XYZ-CLR.", names), "Try this windshield.");
 });
