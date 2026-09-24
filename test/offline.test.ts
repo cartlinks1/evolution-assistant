@@ -208,6 +208,8 @@ test("SKU guard: long SKUs are read whole, and option SKUs of a matched windshie
 test("claims guard: a product NAME containing AS-4 is not a claim; 'AS-4 rated' still is", () => {
   const name = guardClaims([{ text: "Your 2021 Onward takes RDG-CCO-CLR (AS-4 Premium).", citations: [] }]);
   assert.equal(name.removed.length, 0);
+  const line = guardClaims([{ text: "We can fit an AS-4 windshield to the Drive 2.", citations: [] }]);
+  assert.equal(line.removed.length, 0);
   const claim = guardClaims([{ text: "It's AS-4 rated polycarbonate.", citations: [] }]);
   assert.equal(claim.removed.length, 1);
 });
@@ -240,4 +242,11 @@ test("SKU scrub: customers see product names, never SKUs", () => {
     "Order Ridgeline Street-Legal Windshield for Club Car Onward LSV with Windshield Protection Film and MagMount.",
   );
   assert.equal(scrubSkus("Try RDG-XYZ-CLR.", names), "Try this windshield.");
+});
+
+test("fitment: a cart can be listed without a SKU (available — contact us)", async () => {
+  const { parseFitmentRows } = await import("../lib/fitment");
+  const rows = parseFitmentRows([{ make: "Yamaha", model: "Drive 2", "year range": "", product: "Some Windshield", sku: "", notes: "Contact us" }]);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0]!.sku, "");
 });

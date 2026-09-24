@@ -92,7 +92,11 @@ export async function answerQuestion(opts: {
   }
 
   // 2. RETRIEVE + 3. LOOKUP (in parallel)
-  const fitmentQuery = plan.fitment;
+  // Only a real product code counts as a SKU; a product name the planner misfiled there is dropped.
+  const fitmentQuery = plan.fitment && {
+    ...plan.fitment,
+    sku: plan.fitment.sku && skusIn(plan.fitment.sku).length ? plan.fitment.sku : null,
+  };
   const attempted = !!(fitmentQuery && (fitmentQuery.make || fitmentQuery.model || fitmentQuery.sku));
   const [retrieval, matches] = await Promise.all([
     retrieve(plan.standalone_question),
@@ -216,7 +220,7 @@ export async function answerQuestion(opts: {
     return matches
       .filter(
         (m) =>
-          skusIn(text).includes(m.sku.toUpperCase()) ||
+          (m.sku && skusIn(text).includes(m.sku.toUpperCase())) ||
           t.includes(productName(m).toLowerCase()) ||
           t.includes(`${m.make} ${m.model}`.toLowerCase()),
       )

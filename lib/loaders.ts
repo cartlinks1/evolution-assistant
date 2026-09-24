@@ -51,16 +51,17 @@ export async function loadFile(absPath: string): Promise<LoadedFile> {
     if (isFitmentCsv(headers)) {
       const fitment = parseFitmentRows(rows);
       if (fitment.length < rows.length) {
-        warnings.push(`${rows.length - fitment.length} row(s) skipped: missing make, model, or SKU.`);
+        warnings.push(`${rows.length - fitment.length} row(s) skipped: missing make or model.`);
       }
       // One overview chunk so broad questions ("what carts do you fit?") can still be found by search.
-      const carts = [...new Set(fitment.map((r) => `${r.make} ${r.model}`))].sort();
-      const skus = [...new Set(fitment.map((r) => r.sku))].sort();
+      // Product names only — SKUs are never shown to customers, so they're kept out of search text too.
+      const carts = [...new Set(fitment.map((r) => `${r.make} ${r.model}${r.yearLabel !== "not specified" ? ` (${r.yearLabel})` : ""}`))];
+      const products = [...new Set(fitment.map((r) => r.product).filter(Boolean))];
       const overview: DraftChunk = {
         section: "Overview",
         content:
           `Fitment list covering ${carts.length} cart models: ${carts.join(", ")}.\n` +
-          `SKUs in this list: ${skus.join(", ")}.\n` +
+          (products.length ? `Products in this list: ${products.join("; ")}.\n` : "") +
           `For a specific cart and year, use the exact fitment lookup.`,
       };
       return { chunks: fitment.length ? [overview] : [], fitment, warnings };

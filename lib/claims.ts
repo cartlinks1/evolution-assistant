@@ -51,7 +51,7 @@ const DECLINES_TO_CLAIM =
  * "RDG-CCO-CLR (AS-4 Premium) fits your Onward" isn't mistaken for a safety claim, while
  * "it's AS-4 rated" or "AS-4 compliant" still is.
  */
-const PRODUCT_NAMES = /\bAS-?4 (Premium( Windshield)?|line|polycarbonate line|product line)\b/gi;
+const PRODUCT_NAMES = /\bAS-?4 (Premium( Windshields?)?|windshields?|line|polycarbonate line|product line)\b/gi;
 
 const checkClaim: SentenceCheck = (rawSentence, citations) => {
   const sentence = rawSentence.replace(PRODUCT_NAMES, "");

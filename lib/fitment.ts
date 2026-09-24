@@ -91,7 +91,8 @@ export function parseFitmentRows(rows: Record<string, string>[]): FitmentRow[] {
         notes: (cNotes ? r[cNotes]?.trim() : "") || null,
       };
     })
-    .filter((r) => r.make && r.model && r.sku);
+    // SKU is optional: a cart can be listed as available before it has a SKU ("contact us").
+    .filter((r) => r.make && r.model);
 }
 
 // ─── Lookup ─────────────────────────────────────────────────────────
@@ -188,7 +189,7 @@ export async function skuNames(db: SupabaseClient): Promise<Map<string, string>>
   if (error) throw new Error(`Could not load product names: ${error.message}`);
   const map = new Map<string, string>();
   for (const r of (data ?? []) as { sku: string; product: string | null; make: string; model: string }[]) {
-    if (!map.has(r.sku.toUpperCase())) map.set(r.sku.toUpperCase(), productName(r));
+    if (r.sku && !map.has(r.sku.toUpperCase())) map.set(r.sku.toUpperCase(), productName(r));
   }
   return map;
 }
@@ -221,7 +222,7 @@ export const SKU_PATTERN = /\b[A-Z]{2,5}(?:-[A-Z0-9]{2,5}){2,5}\b/g;
 export const skusIn = (s: string): string[] => [...new Set(s.toUpperCase().match(SKU_PATTERN) ?? [])];
 
 export function guardSkus(segments: CitedSegment[], lookupSkus: string[]): GuardResult {
-  const allowed = lookupSkus.map((s) => s.toUpperCase());
+  const allowed = lookupSkus.filter(Boolean).map((s) => s.toUpperCase());
   // An option SKU of a matched windshield (RDG-CCO-CLR-WPF for RDG-CCO-CLR) fits the same cart.
   const fromLookup = (sku: string) => allowed.some((base) => sku === base || sku.startsWith(`${base}-`));
   return filterSentences(segments, (sentence, citations) => {

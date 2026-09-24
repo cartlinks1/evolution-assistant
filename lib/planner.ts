@@ -53,7 +53,8 @@ Given the conversation so far and the customer's latest message:
 2. If the question is about fitment (which windshield fits a cart, or what a SKU fits), fill in the fitment fields:
    - make/model: when the customer's cart matches one in the KNOWN CARTS list (even if abbreviated or misspelled, e.g. "CC Precedent" → "Club Car" / "Precedent"), copy the make and model spelling from that list exactly. If it doesn't match anything in the list, use the customer's own words — never substitute a different cart.
    - year: a 4-digit model year if the customer gave one, else null.
-   - sku: a product SKU if the customer mentioned one, else null.
+   - sku: only an actual product code the customer typed (letters and digits separated by dashes, like "ABC-DEF-GHI"), else null. A product name ("the AS-4 Premium", "the street-legal one") is NOT a SKU.
+   If the question is about the product line in general ("what does it fit?", "which carts do you make windshields for?") rather than one specific cart or code, set fitment to null — search will handle it.
    Otherwise set fitment to null.
 3. Set dealer_inquiry to true if the message is from or about a dealer/wholesaler/reseller relationship: dealer pricing or discounts, becoming a dealer, placing dealer or bulk-for-resale orders, or dealer program terms. Ordinary retail questions (prices, shipping, returns) are not dealer inquiries.`;
 
