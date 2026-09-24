@@ -280,3 +280,11 @@ test("grader: dealer reply is recognized as its own behavior", () => {
   assert.equal(checkBehavior(dealerCase, { status: "escalated", escalationReason: "dealer_inquiry" }).ok, true);
   assert.equal(checkBehavior(dealerCase, { status: "escalated", escalationReason: "no_relevant_sources" }).ok, false);
 });
+
+test("settings: common paste mistakes are forgiven", async () => {
+  const { readSetting } = await import("../lib/config");
+  process.env.TEST_PASTE_1 = "  sk-abc123 \n";
+  process.env.TEST_PASTE_2 = "TEST_PASTE_2=sk-abc123";
+  process.env.TEST_PASTE_3 = '"sk-abc123"';
+  for (const k of ["TEST_PASTE_1", "TEST_PASTE_2", "TEST_PASTE_3"]) assert.equal(readSetting(k), "sk-abc123");
+});

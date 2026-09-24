@@ -7,8 +7,19 @@ export const SETTING_ALIASES: Record<string, string[]> = {
   SUPABASE_SECRET_KEY: ["SUPABASE_SECRET"],
 };
 
-export const readSetting = (name: string): string | undefined =>
-  [name, ...(SETTING_ALIASES[name] ?? [])].map((n) => process.env[n]).find(Boolean);
+/**
+ * Read a setting, forgiving common dashboard paste mistakes: surrounding spaces/newlines,
+ * wrapping quotes, and a leading "NAME=" copied along with the value.
+ */
+export const readSetting = (name: string): string | undefined => {
+  for (const n of [name, ...(SETTING_ALIASES[name] ?? [])]) {
+    let v = process.env[n]?.trim();
+    if (!v) continue;
+    v = v.replace(/^[A-Z][A-Z0-9_]*=/, "").trim().replace(/^(["'])(.*)\1$/, "$2").trim();
+    if (v) return v;
+  }
+  return undefined;
+};
 
 function required(name: string): string {
   const value = readSetting(name);
