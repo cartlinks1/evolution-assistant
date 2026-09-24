@@ -1,0 +1,13 @@
+# Netlify build settings. Netlify's Next.js adapter (OpenNext) is applied automatically.
+#
+# Only the `production` branch deploys (set "Branch to deploy: production" in Netlify and
+# turn off deploy previews / branch deploys). Each deploy costs credits on the free plan,
+# so everyday work lands on `main` and the live bot only updates when `main` is merged
+# into `production` on purpose.
+
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"

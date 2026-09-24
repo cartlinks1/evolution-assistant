@@ -47,7 +47,11 @@ export async function POST(req: Request) {
   const sessionId = typeof body.sessionId === "string" ? body.sessionId.slice(0, 64) : null;
 
   // 3. Usage limits — checked before any paid API call.
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "unknown";
+  const ip =
+    req.headers.get("x-nf-client-connection-ip") || // Netlify
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    req.headers.get("x-real-ip") ||
+    "unknown";
   const hash = visitorHash(ip);
   const hit = await checkLimits(hash).catch((e) => {
     console.error(e);

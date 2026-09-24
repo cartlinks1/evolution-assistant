@@ -150,6 +150,18 @@ customers use and grades the answer three ways ([`lib/eval/grade.ts`](lib/eval/g
 Verdict: **MADE UP** if anything is unsupported, **PASS** if all three checks pass, **FAIL** otherwise.
 Results are saved as each question finishes (a rerun resumes), with a full transcript per question.
 
+## Deploying (Netlify)
+
+The app is standard Next.js and deploys on Netlify's free plan (`netlify.toml`). Netlify watches
+the **`production`** branch only: day-to-day commits go to `main`, and the live bot updates when
+`main` is merged into `production`. Each deploy spends free-plan credits, and running out pauses
+the site until the next month. Set the same environment variables as `.env.local` in Netlify, and
+add the chat bubble to Shopify with one line before `</body>` in `theme.liquid`:
+
+```html
+<script src="https://YOUR-SITE.netlify.app/widget.js" defer></script>
+```
+
 ## Adding real documents
 
 1. Put files in `data/` (subfolders are fine for organizing).
