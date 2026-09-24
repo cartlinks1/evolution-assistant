@@ -8,7 +8,7 @@ our team" instead of guessing.
 > blocked by a pre-commit check. The runnable demo uses `/sample-data`: a fictional brand,
 > *Ridgeline Shields*, with invented products and prices.
 
-**Status:** Phase 1 of 5 — core retrieval + a command-line tool. (Roadmap at the bottom.)
+**Status:** Live on the store: web chat + Shopify bubble, hosted on Netlify. (Roadmap at the bottom.)
 
 ---
 
@@ -198,8 +198,8 @@ test/         offline tests
 ## Roadmap
 
 - [x] **Phase 1:** Core RAG. Ingestion + CLI with retrieved chunks and scores.
-- [ ] **Phase 2:** Evaluation — test set + grader built; baseline run pending.
-- [ ] **Phase 3:** Web chat UI in the brand's style; sources under each answer; Shopify-embeddable widget.
-- [ ] **Phase 4:** Lead capture (name, email, cart) with email notification, and a log of every question and outcome.
-- [ ] **Phase 5:** Vercel deploy with rate limits and a hard monthly spending cap.
+- [x] **Phase 2:** Evaluation. Test set + PASS / FAIL / MADE UP grader built; 5-case pilot passed (full run optional).
+- [x] **Phase 3:** Web chat UI in the brand's style; sources under each answer; Shopify bubble.
+- [~] **Phase 4:** Question log done; lead capture (name, email, cart) still to build.
+- [x] **Phase 5:** Deployed on Netlify with per-visitor/daily limits and a monthly budget cap.
 - [ ] Later: sync fitment straight from Shopify.
