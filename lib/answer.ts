@@ -52,6 +52,11 @@ export interface AnswerResult {
   fitment: { attempted: boolean; matches: FitmentMatch[] };
   claimsRemoved: { sentence: string; reason: string }[];
   usage: { model: string; inputTokens: number; outputTokens: number; costUsd: number };
+  /** Exactly what Claude was given to answer from (for the eval grader and the question log). */
+  context: { title: string; text: string }[];
+  /** The model that actually served the answer (differs from the configured one if a fallback ran). */
+  servedModel: string | null;
+  latencyMs: number;
 }
 
 export const escalationMessage = () =>
@@ -75,6 +80,11 @@ export async function answerQuestion(opts: {
 }): Promise<AnswerResult> {
   const { question, history = [] } = opts;
   const usage = { model: config.claudeModel, inputTokens: 0, outputTokens: 0, costUsd: 0 };
+  const started = Date.now();
+  let context: AnswerResult["context"] = [];
+  let servedModel: string | null = null;
+  const done = (r: Omit<AnswerResult, "context" | "servedModel" | "latencyMs">): AnswerResult =>
+    finish({ ...r, context, servedModel, latencyMs: Date.now() - started });
 
   // 1. PLAN
   const carts = await knownCarts(db());
@@ -85,7 +95,7 @@ export async function answerQuestion(opts: {
   // Dealer matters are never answered here — company policy is to handle them by email.
   // Short-circuit before any search.
   if (plan.dealer_inquiry) {
-    return finish({
+    return done({
       plan, retrieval: { candidates: [], relevant: [] }, fitment: { attempted: false, matches: [] }, claimsRemoved: [],
       status: "escalated", escalationReason: "dealer_inquiry", text: dealerReply(), sources: [], usage,
     });
@@ -107,7 +117,7 @@ export async function answerQuestion(opts: {
 
   // 4. GATE — nothing relevant and no fitment lookup: don't ask Claude to improvise.
   if (!retrieval.relevant.length && !attempted) {
-    return finish({ ...base, status: "escalated", escalationReason: "no_relevant_sources", text: escalationMessage(), sources: [], usage });
+    return done({ ...base, status: "escalated", escalationReason: "no_relevant_sources", text: escalationMessage(), sources: [], usage });
   }
 
   // 5. GENERATE
@@ -145,6 +155,8 @@ export async function answerQuestion(opts: {
     });
   }
 
+  context = docs.map((d) => ({ title: d.title, text: d.data }));
+
   const messages: Anthropic.Beta.BetaMessageParam[] = [
     ...history.map((t) => ({ role: t.role, content: t.content })),
     {
@@ -175,11 +187,12 @@ export async function answerQuestion(opts: {
     betas: ["server-side-fallback-2026-07-01"],
     fallbacks: "default",
   });
+  servedModel = response.model;
   usage.inputTokens += response.usage.input_tokens;
   usage.outputTokens += response.usage.output_tokens;
 
   if (response.stop_reason === "refusal") {
-    return finish({ ...base, status: "escalated", escalationReason: "refusal", text: escalationMessage(), sources: [], usage });
+    return done({ ...base, status: "escalated", escalationReason: "refusal", text: escalationMessage(), sources: [], usage });
   }
 
   // 6. CHECK — collect text + citations, run the claims guard, assign [n] markers.
@@ -269,7 +282,7 @@ export async function answerQuestion(opts: {
   }
 
   if (couldNotAnswer) {
-    return finish({
+    return done({
       ...base, claimsRemoved: guarded.removed, status: "escalated", escalationReason: "model_could_not_answer",
       text: `${text}\n\n${escalationMessage()}`.trim(), sources, usage,
     });
@@ -278,14 +291,14 @@ export async function answerQuestion(opts: {
     // No citations at all. A clarifying question ("Which year is your cart?") is fine;
     // an uncited factual answer is not — we don't show it.
     if (text.endsWith("?")) {
-      return finish({ ...base, claimsRemoved: guarded.removed, status: "clarifying", text, sources, usage });
+      return done({ ...base, claimsRemoved: guarded.removed, status: "clarifying", text, sources, usage });
     }
-    return finish({
+    return done({
       ...base, claimsRemoved: guarded.removed, status: "escalated", escalationReason: "no_citations",
       text: `I couldn't confirm that from our documents. ${escalationMessage()}`, sources, usage,
     });
   }
-  return finish({ ...base, claimsRemoved: guarded.removed, status: "answered", text, sources, usage });
+  return done({ ...base, claimsRemoved: guarded.removed, status: "answered", text, sources, usage });
 }
 
 function finish(r: AnswerResult): AnswerResult {

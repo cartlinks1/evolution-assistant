@@ -131,8 +131,24 @@ npm run ask                    # chat mode; follow-up questions work
 | `npm run ingest -- --sample` | Same, for the fictional `/sample-data` |
 | `npm run ask -- "question"` | Answer one question and show the chunks, scores and cost |
 | `npm run ask` | Chat mode with follow-ups |
-| `npm test` | Offline tests: chunking, fitment parsing, claims guard, loaders |
+| `npm run eval` | Run the test questions through the real assistant and grade each answer PASS / FAIL / MADE UP |
+| `npm run eval -- --limit 5` | Cheap pilot on the first 5 questions |
+| `npm test` | Offline tests: chunking, fitment parsing, claims guard, loaders, grader |
 | `npm run check:private` | Scan every tracked file for private data or secrets |
+
+## Evaluation (Phase 2)
+
+A test set of questions with owner-approved expected answers lives next to the private data
+(`data/eval/cases.json`). `npm run eval` sends each question through the same `answerQuestion()`
+customers use and grades the answer three ways ([`lib/eval/grade.ts`](lib/eval/grade.ts)):
+
+1. **Behavior (code):** did it answer, hand off to the team, or give the dealer reply, as expected?
+2. **Content (code):** are the required facts present, and is anything forbidden absent (for example, any SKU)?
+3. **Made up? (a second Claude model as judge):** it reads the answer next to the exact source text
+   the assistant was given, and lists every statement those sources don't support.
+
+Verdict: **MADE UP** if anything is unsupported, **PASS** if all three checks pass, **FAIL** otherwise.
+Results are saved as each question finishes (a rerun resumes), with a full transcript per question.
 
 ## Adding real documents
 
@@ -170,7 +186,7 @@ test/         offline tests
 ## Roadmap
 
 - [x] **Phase 1:** Core RAG. Ingestion + CLI with retrieved chunks and scores.
-- [ ] **Phase 2:** Evaluation. ~25 questions with expected answers; pass/fail/made-up scorecard.
+- [ ] **Phase 2:** Evaluation — test set + grader built; baseline run pending.
 - [ ] **Phase 3:** Web chat UI in the brand's style; sources under each answer; Shopify-embeddable widget.
 - [ ] **Phase 4:** Lead capture (name, email, cart) with email notification, and a log of every question and outcome.
 - [ ] **Phase 5:** Vercel deploy with rate limits and a hard monthly spending cap.

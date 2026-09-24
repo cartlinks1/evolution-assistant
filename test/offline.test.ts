@@ -13,6 +13,7 @@ import { readManifest } from "../lib/manifest";
 import { guardDealerPricing } from "../lib/dealer";
 import { toKeywordQuery } from "../lib/retrieval";
 import { normalizeContacts } from "../lib/contact";
+import { checkBehavior, checkContent, verdict, type EvalCase } from "../lib/eval/grade";
 
 const sample = (p: string) => path.resolve("sample-data", p);
 
@@ -249,4 +250,33 @@ test("fitment: a cart can be listed without a SKU (available — contact us)", a
   const rows = parseFitmentRows([{ make: "Yamaha", model: "Drive 2", "year range": "", product: "Some Windshield", sku: "", notes: "Contact us" }]);
   assert.equal(rows.length, 1);
   assert.equal(rows[0]!.sku, "");
+});
+
+// ─── Grader self-tests: a known-good answer must pass, known-bad ones must not ───
+const evalCase: EvalCase = {
+  id: "t", category: "Test", question: "Which windshield fits my Denago?", expect: "answer",
+  expected_answer: "The Denago windshield.", must_include: ["Denago"], must_not_include: ["RDG-"], source: "",
+};
+const cleanJudge = { unsupported_statements: [], matches_expected: "yes" as const, explanation: "" };
+
+test("grader: a correct answer passes (oracle)", () => {
+  const b = checkBehavior(evalCase, { status: "answered", escalationReason: undefined });
+  const c = checkContent(evalCase, "The Ridgeline windshield for Denago fits.");
+  assert.equal(verdict(b, c, cleanJudge).verdict, "PASS");
+});
+
+test("grader: empty answer, wrong behavior, SKU leak, and made-up claims all fail (nulls)", () => {
+  const answered = checkBehavior(evalCase, { status: "answered", escalationReason: undefined });
+  assert.equal(verdict(answered, checkContent(evalCase, ""), cleanJudge).verdict, "FAIL");
+  const handedOff = checkBehavior(evalCase, { status: "escalated", escalationReason: "no_relevant_sources" });
+  assert.equal(verdict(handedOff, checkContent(evalCase, "Denago"), cleanJudge).verdict, "FAIL");
+  assert.equal(verdict(answered, checkContent(evalCase, "Denago: RDG-DEN-CLR"), cleanJudge).verdict, "FAIL");
+  const madeUp = { ...cleanJudge, unsupported_statements: [{ statement: "Ships in 2 days", why: "not in sources" }] };
+  assert.equal(verdict(answered, checkContent(evalCase, "Denago"), madeUp).verdict, "MADE UP");
+});
+
+test("grader: dealer reply is recognized as its own behavior", () => {
+  const dealerCase = { ...evalCase, expect: "dealer" as const };
+  assert.equal(checkBehavior(dealerCase, { status: "escalated", escalationReason: "dealer_inquiry" }).ok, true);
+  assert.equal(checkBehavior(dealerCase, { status: "escalated", escalationReason: "no_relevant_sources" }).ok, false);
 });

@@ -10,6 +10,7 @@
     "db:migrate": "tsx --env-file-if-exists=.env.local scripts/migrate.ts",
     "ingest": "tsx --env-file-if-exists=.env.local scripts/ingest.ts",
     "ask": "tsx --env-file-if-exists=.env.local scripts/ask.ts",
+    "eval": "tsx --env-file-if-exists=.env.local scripts/eval.ts",
     "check:private": "node scripts/check-staged.mjs --all",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test test/*.test.ts"
